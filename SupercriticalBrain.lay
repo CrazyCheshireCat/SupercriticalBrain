@@ -1,0 +1,4 @@
+LAYOUT(SupercriticalBrainLayout, 752, 416)
+	ITEM(ArrayCtrl, wnd_log, HSizePosZ(0, 0).VSizePosZ(0, 0))
+END_LAYOUT
+

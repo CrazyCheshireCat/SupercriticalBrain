@@ -1,0 +1,17 @@
+description "Управляющая часть для проекта БинарКо по управлению установкой \"Сверхкритика\"\377";
+
+uses
+	CtrlLib;
+
+file
+	SupercriticalBrain.h,
+	SupercriticalBrain.cpp,
+	main.cpp,
+	Resources readonly separator,
+	SupercriticalBrain.lay,
+	SupercriticalBrain.iml,
+	FileInfo.rc;
+
+mainconfig
+	"" = "GUI MT";
+
