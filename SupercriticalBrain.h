@@ -12,6 +12,47 @@ using namespace Upp;
 #define IMAGEFILE <SupercriticalBrain/SupercriticalBrain.iml>
 #include <Draw/iml_header.h>
 
+class SensDataPoint : Moveable <SensDataPoint> 
+{
+public:
+	Time   ts;	// временная метка
+	double v;	// значение
+	
+	SensDataPoint()                                        { Clear();                }
+	SensDataPoint(const Time& src_ts, const double& src_v) { ts = src_ts; v = src_v; }
+	SensDataPoint(const SensDataPoint& src)                { SetBy(src);             }
+	~SensDataPoint()                                       { Clear();                }
+	
+	SensDataPoint& operator=(const SensDataPoint& src) { SetBy(src); return *this;                            }
+	bool operator==(const SensDataPoint& right)        { return (ts.Get() == right.ts.Get() && v == right.v); }
+	inline int64 ts_i() const                          { return ts.Get();                                     }
+
+protected:
+	void SetBy(const SensDataPoint& src)               { ts = src.ts; v = src.v; }
+};
+
+class SensDataStore : Moveable <SensDataStore>
+{
+public:
+	Vector <SensDataPoint> line;	
+	
+	SensDataStore() { max_count = 0; }
+	SensDataStore(const SensDataStore& src) { SetBy(src); }
+	~SensDataStore() { line.Clear(); }
+	
+	int GetMaxCount() const     { return max_count; }
+	void SetMaxCount(int count) { if (count >= 0) max_count = count; else max_count = 0; }
+	bool IsMaxCount() const     { return max_count > 0; }
+	
+	bool Add(const Time& ts, const double& v) { SensDataPoint d_point(ts, v); return Add(d_point); }
+	bool Add(const SensDataPoint& d_point);
+	
+	void Clear() { line.Clear(); }
+protected:
+	int max_count;
+	
+	void SetBy(const SensDataStore& src);
+};
 
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
 {

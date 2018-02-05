@@ -6,6 +6,7 @@ uses
 file
 	SupercriticalBrain.h,
 	SupercriticalBrain.cpp,
+	SupercriticalBrain_SensData.cpp,
 	main.cpp,
 	Resources readonly separator,
 	SupercriticalBrain.lay,
