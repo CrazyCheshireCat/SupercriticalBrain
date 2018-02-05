@@ -26,13 +26,15 @@ public:
 	SensDataPoint& operator=(const SensDataPoint& src) { SetBy(src); return *this;                            }
 	bool operator==(const SensDataPoint& right)        { return (ts.Get() == right.ts.Get() && v == right.v); }
 	inline int64 ts_i() const                          { return ts.Get();                                     }
-
+	
+	void Clear() 									    { ts.Set(0); v = 0.0; }
 protected:
 	void SetBy(const SensDataPoint& src)               { ts = src.ts; v = src.v; }
 };
 
 class SensDataStore : Moveable <SensDataStore>
 {
+	friend SensDataStore;
 public:
 	Vector <SensDataPoint> line;	
 	
@@ -52,6 +54,14 @@ protected:
 	int max_count;
 	
 	void SetBy(const SensDataStore& src);
+};
+
+class SupercriticalBrainConfig
+{
+public:
+
+
+	SupercriticalBrainConfig();
 };
 
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
