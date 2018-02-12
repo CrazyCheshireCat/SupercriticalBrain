@@ -76,7 +76,7 @@ void SupercriticalBrain::StandartInit()
 	
 	// Иконка в трее
 	trayicon.Icon(SupercriticalBrainImg::monitor_16());
-	trayicon.Tip("УИМ OPC-сервер");
+	trayicon.Tip("SupercriticalBrain");
 	trayicon.WhenBar = THISBACK(TrayMenu);	
 }
 

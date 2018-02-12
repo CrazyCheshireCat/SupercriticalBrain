@@ -2,7 +2,8 @@ description "Управляющая часть для проекта Бинар�
 
 uses
 	CtrlLib,
-	OPC_Client;
+	OPC_Client,
+	HeapOfNeeds;
 
 file
 	SupercriticalBrain.h,

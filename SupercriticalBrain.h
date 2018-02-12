@@ -77,6 +77,8 @@ struct SupercriticalBrainCfg
 	double pid_Ki;
 	double pid_Kd;
 	int    pid_start_pow;
+	
+	Value j_conf;
 };
 
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
@@ -126,7 +128,8 @@ protected:
 };
 
 bool Configurate_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg);
-bool Configurate_SupercriticalBrain(const Value& j_conf, SupercriticalBrainCfg& cfg);
+//bool Configurate_SupercriticalBrain(const Value& j_conf, SupercriticalBrainCfg& cfg);
 bool Configurate_SupercriticalBrain(SupercriticalBrainCfg& cfg);
+void UpdateConfig_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg);
 
 #endif

@@ -2,4 +2,5 @@
 #define _SupercriticalBrain_icpp_init_stub
 #include "CtrlLib/init"
 #include "OPC_Client/init"
+#include "HeapOfNeeds/init"
 #endif

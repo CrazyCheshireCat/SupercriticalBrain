@@ -1,7 +1,52 @@
 #include "SupercriticalBrain.h"
 
+#include <HeapOfNeeds/Heap_JsonConfig.h>
+
 #define DEFAULT_WORK_FREQ 5
 
+namespace SupercriticalBrainConfigNames
+{
+	const char* n_MainSettings       = "MainSettings";
+	const char* n_DataSource         = "DataSource";
+	const char* n_DS_ReadFreq        = "ReadDataFrequency_sec";
+	const char* n_OpcName            = "OPCServerName";
+	const char* n_DS_Tag_Temperature = "TagName_Temperature";
+	const char* n_DS_Tag_Pressure    = "TagName_Pressure";
+	const char* n_DataControl        = "DataControl";
+	const char* n_DC_PowerControl    = "TagName_Power";
+	const char* n_DC_ByHandControl   = "TagName_ByHandControl";
+	
+	const char* n_PID                = "PidSettings";
+	
+	const char* n_PID_Kp             = "Kp";
+	const char* n_PID_Ki             = "Ki";
+	const char* n_PID_Kd             = "Kd";
+	
+};
+
+/*
+{
+	"MainSettings" : {
+	}
+	"DataSource" : {
+		"ReadDataFrequency_sec" : 5,
+		"OPCServerName"         : "BinarControllingServer",
+		"TagName_Temperature"   : "UIM_001/ch04",
+		"TagName_Pressure"      : "UIM_001/ch00"
+	},
+	"DataControl" :
+	{
+		"OPCServerName"         : "BinarControllingServer",
+		"TagName_Power"         : "Regulator/power02",
+		"TagName_ByHandControl" : "Regulator/regultator_controlling_byHand"
+	},
+	"PidSettings" : {
+		"Kp" : 10,
+		"Ki" : 0.01,
+		"Kd" : 10
+	}
+}
+*/
 
 bool SupercriticalBrain::LoadConfig()
 {
@@ -64,14 +109,100 @@ bool Configurate_SupercriticalBrain(SupercriticalBrainCfg& cfg)
 	
 	return true;
 }
-
+/*
 bool Configurate_SupercriticalBrain(const Value& j_conf, SupercriticalBrainCfg& cfg)
 {
+	if (j_conf.IsNull()) return false;
+	
+	if ()
+	
 	return false;
 }
+*/
 
-bool Configurate_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg)
+bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg)
 {
-	return false;
+	if (!FileExists(path)) return false;
+	try {
+		String  s = LoadFile(path);
+		CParser p(s);
+		//Value   j_conf = ParseJSON(p);
+		cfg.j_conf = ParseJSON(p);
+		using namespace SupercriticalBrainConfigNames;
+		j_int    freq; freq.SetName(n_DS_ReadFreq);
+		j_string str; 
+		j_double K;
+		
+		// ----- Read Data frequency -----
+		if (!freq.SetValueJson(cfg.j_conf[n_DataSource])) return false; 
+		if (freq.GetValue() <= 0)                         return false;
+		cfg.work_freq = freq.GetValue();
+		
+		// ----- Opc name -----
+		str.SetName(n_OpcName);
+		if (!str.SetValueJson(cfg.j_conf[n_DataSource])) return false;
+		if (str.GetValue().IsEmpty())                    return false;
+		cfg.opc_source_name = str.GetValue();
+		// -----
+		str.Clear();
+		str.SetName(n_DS_Tag_Temperature);
+		if (!str.SetValueJson(cfg.j_conf[n_DataSource])) return false;
+		if (str.GetValue().IsEmpty())                    return false;
+		cfg.opc_s_tag_temperature = str.GetValue();
+		// -----
+		str.Clear();
+		str.SetName(n_DS_Tag_Pressure);
+		if (!str.SetValueJson(cfg.j_conf[n_DataSource])) return false;
+		if (str.GetValue().IsEmpty())                    return false;
+		cfg.opc_s_tag_pressure = str.GetValue();
+		// ----- Opc name -----
+		str.SetName(n_OpcName);
+		if (!str.SetValueJson(cfg.j_conf[n_DataControl])) return false;
+		if (str.GetValue().IsEmpty())                    return false;
+		cfg.opc_result_name = str.GetValue();
+		// -----
+		str.Clear();
+		str.SetName(n_DC_PowerControl);
+		if (!str.SetValueJson(cfg.j_conf[n_DataControl])) return false;
+		if (str.GetValue().IsEmpty())                     return false;
+		cfg.opc_r_tag_power = str.GetValue();
+		// -----
+		str.Clear();
+		str.SetName(n_DC_ByHandControl);
+		if (!str.SetValueJson(cfg.j_conf[n_DataControl])) return false;
+		if (str.GetValue().IsEmpty())                     return false;
+		cfg.opc_r_tag_handcontrolling = str.GetValue();
+		
+		// ----- PID Kp-----
+		K.Clear();
+		K.SetName(n_PID_Kp);
+		if(!K.SetValueJson(cfg.j_conf[n_PID])) return false;
+		//if(K.GetValue() )
+		cfg.pid_Kp = K.GetValue();
+		// ----- PID Ki-----
+		K.Clear();
+		K.SetName(n_PID_Ki);
+		if(!K.SetValueJson(cfg.j_conf[n_PID]))    return false;
+		if(K.GetValue() >= 1 || K.GetValue() < 0) return false;
+		cfg.pid_Ki = K.GetValue();
+		
+		K.Clear();
+		K.SetName(n_PID_Kd);
+		if(!K.SetValueJson(cfg.j_conf[n_PID])) return false;
+		//if(K.GetValue() )
+		cfg.pid_Kd = K.GetValue();
+		
+		
+	} catch (CParser::Error) {
+		cfg.j_conf = NULL;
+		return false;
+	} catch (...) {
+		cfg.j_conf = NULL;
+		return false;
+	}
+	return true;
 }
 
+void UpdateConfig_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg)
+{
+}
