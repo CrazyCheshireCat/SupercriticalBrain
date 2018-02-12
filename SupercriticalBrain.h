@@ -1,7 +1,10 @@
 #ifndef _SupercriticalBrain_SupercriticalBrain_h
 #define _SupercriticalBrain_SupercriticalBrain_h
 
+#include <OPC_Client/OPC_Client.h>
+
 #include <CtrlLib/CtrlLib.h>
+#include <Core/Core.h>
 
 using namespace Upp;
 
@@ -11,6 +14,9 @@ using namespace Upp;
 #define IMAGECLASS SupercriticalBrainImg
 #define IMAGEFILE <SupercriticalBrain/SupercriticalBrain.iml>
 #include <Draw/iml_header.h>
+
+// -----
+
 
 class SensDataPoint : Moveable <SensDataPoint> 
 {
@@ -38,13 +44,13 @@ class SensDataStore : Moveable <SensDataStore>
 public:
 	Vector <SensDataPoint> line;	
 	
-	SensDataStore() { max_count = 0; }
-	SensDataStore(const SensDataStore& src) { SetBy(src); }
-	~SensDataStore() { line.Clear(); }
+	SensDataStore()                          { max_count = 0; }
+	SensDataStore(const SensDataStore& src)  { SetBy(src);    }
+	~SensDataStore()                         { line.Clear();  }
 	
-	int GetMaxCount() const     { return max_count; }
+	int GetMaxCount() const     { return max_count;                                      }
 	void SetMaxCount(int count) { if (count >= 0) max_count = count; else max_count = 0; }
-	bool IsMaxCount() const     { return max_count > 0; }
+	bool IsMaxCount() const     { return max_count > 0;                                  }
 	
 	bool Add(const Time& ts, const double& v) { SensDataPoint d_point(ts, v); return Add(d_point); }
 	bool Add(const SensDataPoint& d_point);
@@ -56,18 +62,28 @@ protected:
 	void SetBy(const SensDataStore& src);
 };
 
-class SupercriticalBrainConfig
+struct SupercriticalBrainCfg
 {
-public:
-
-
-	SupercriticalBrainConfig();
+	int work_freq;
+	String opc_source_name;
+	String opc_s_tag_temperature;
+	String opc_s_tag_pressure;
+	String opc_result_name;
+	String opc_r_tag_handcontrolling;
+	String opc_r_tag_power;
+	
+	// -----
+	double pid_Kp;
+	double pid_Ki;
+	double pid_Kd;
+	int    pid_start_pow;
 };
 
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
 {
 	typedef SupercriticalBrain CLASSNAME;
 public:
+
 	volatile Atomic terminated;			//< Сигнал завершения работы приложения
 	volatile Atomic thread_work;		//< Поток для работы
 	
@@ -96,8 +112,21 @@ protected:
 public:
 
 protected:
+	SupercriticalBrainCfg cfg;
+	double heat_Tset;
+	int64  heat_duration;
+	
 	// Загрузка конфигурации
-	bool LoadConfig(const char* path);	
+	bool LoadConfig();	
+	void PrintConfig();	
+	
+	bool CheckParams();
+	void StartHeating();
+	void StopHeating();
 };
+
+bool Configurate_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg);
+bool Configurate_SupercriticalBrain(const Value& j_conf, SupercriticalBrainCfg& cfg);
+bool Configurate_SupercriticalBrain(SupercriticalBrainCfg& cfg);
 
 #endif

@@ -10,6 +10,16 @@ SupercriticalBrain::SupercriticalBrain()
 	
 	StandartInit();
 	
+	// Грузим конфиг
+	if (!LoadConfig()) {
+		Log_AddCritical("Неверный файл конфигурации, работа программы будет завершена");
+		SetTimeCallback(10000, callback(this, &SupercriticalBrain::CloseMe));
+		return;
+	}
+	PrintConfig();
+		
+	btn_start <<= THISBACK(StartHeating);
+	btn_stop  <<= THISBACK(StopHeating);
 }
 
 SupercriticalBrain::~SupercriticalBrain()
