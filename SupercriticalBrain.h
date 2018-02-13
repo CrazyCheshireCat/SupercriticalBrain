@@ -58,6 +58,7 @@ public:
 	bool Add(const SensDataPoint& d_point);
 	
 	void Clear() { line.Clear(); }
+	int GetCount() const 		{ return line.GetCount(); }
 protected:
 	int max_count;
 	
@@ -93,8 +94,13 @@ struct SupercriticalBrainCfg
 
 struct PID_Help
 {
-	double last_e;
+	double e_last;
+	Time   t_last;
 	double integral;
+	Time   start_time;
+	double max_u;
+	int64  Tset_timer;
+	bool   is_hand_controlling;
 };
 
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
@@ -146,8 +152,9 @@ protected:
 	void InitServers();
 	
 	bool CheckParams();
-	void StartHeating();
+	void Push_StartHeating();
 	void HeatingCallback();
+	void Push_StopHeating();
 	void StopHeating();
 	
 	bool ConnectOPC_SRC();
@@ -157,6 +164,10 @@ protected:
 private:
 	SensDataStore store_t;
 	SensDataStore store_p;
+	
+	PID_Help pid_mem;
+	
+	void SetNullPower();
 	
 };
 

@@ -1,5 +1,7 @@
 #include "SupercriticalBrain.h"
 
+#define Tset_PRECISION 1.0
+
 bool SupercriticalBrain::CheckParams()
 {
 	if (v_Tset.GetData().IsNull()) {
@@ -54,7 +56,7 @@ bool SupercriticalBrain::CheckParams()
 	return true;
 }
 
-void SupercriticalBrain::StartHeating()
+void SupercriticalBrain::Push_StartHeating()
 {
 	if (!CheckParams()) {
 		Log_AddError("Неверные значения для начала работы");
@@ -84,8 +86,44 @@ void SupercriticalBrain::StopHeating()
 	v_Kd.Enable();
 	btn_start.Enable();
 	btn_stop.Disable();
-	Log_AddWarning("Нагрев остановлен вручную");
+	
+	// Очищаем массивы с накопленными значениями:
+	store_t.Clear();
+	store_p.Clear();
+	
 	KillTimeCallback(CLBK_ID_HEATING);
+
+}
+
+void SupercriticalBrain::Push_StopHeating()
+{
+	StopHeating();
+	
+	Log_AddWarning("Нагрев остановлен вручную");
+	SetTimeCallback(5000, callback(this, &SupercriticalBrain::SetNullPower));
+}
+
+void SupercriticalBrain::SetNullPower()
+{
+	String val;
+	Time   val_time;
+	bool   val_quality;
+	
+	bool   is_hand_controlling;		// Включено ли ручное управление нагревом?
+	val = opc_src.ReadTag(cfg.tagid_r_handcontrolling, val_time, val_quality);
+	is_hand_controlling = val.IsEqual("true");
+	
+	
+	// Пишем на управляющий сервер, если ручное управление отключено
+	if (!is_hand_controlling) {
+		for (int i = 0; i < 50; ++i) {
+			if (opc_ctr.WriteTag(cfg.tagid_r_power, "0")) {
+				Log_AddService("Отправлена команда выключения нагрева");
+				break;
+			}
+			Sleep(10);
+		}
+	}
 }
 
 static void Thread_HeatingCallback(SupercriticalBrain* gui)
@@ -120,36 +158,112 @@ void SupercriticalBrain::RunRegulation()
 		UpdateValue(3, now_time, "GOOD");
 	}
 	String val;
-	Time val_time;
-	double val_double;
-	bool val_quality;
-	bool is_hand_controlling;
-	int  current_power;
-	// Включено ли ручное управление:
+	Time   val_time;
+	double T, P;
+	bool   val_quality;
+	
+	bool   is_hand_controlling;		// Включено ли ручное управление нагревом?
+	int    current_power;			// Последнее установленное значение мощности
+									// (при непрерывной работе = текущее значение мощности)
+	// ----- Включено ли ручное управление -----
 	val = opc_src.ReadTag(cfg.tagid_r_handcontrolling, val_time, val_quality);
 	is_hand_controlling = val.IsEqual("true");
 	UpdateValue(4, val_time, is_hand_controlling ? "да" : "нет");
-	// Текущее значение мощности
+	// ----- Текущее значение мощности ------
 	val = opc_src.ReadTag(cfg.tagid_r_last_power, val_time, val_quality);
 	current_power = ScanInt(val);
 	UpdateValue(5, val_time, current_power);
 	
+	// Вспомогательные переменные для вычисления u(t)
+	double e_now;
+	double dt, de;
+	double u;
+	int    pow;
 	
-	// Считываем новые значения:
+	// ----- Текущее значение контрольной температуры ------
 	val = opc_src.ReadTag(cfg.tagid_s_temperature, val_time, val_quality);
-	val_double = ScanDouble(val);
-	UpdateValue(1, val_time, val_double);
-	if (store_t.Add(val_time, val_double)) {
-		// Ура! Новое значение - считаем по нему все, что надо
-		
-		// -------------------------
+	T = ScanDouble(val);
+	UpdateValue(1, val_time, T);
+	if (val_quality) {
+		if (store_t.Add(val_time, T)) { // Значение обновилось - можно пересчитать мощность
+			// Для первого значения - ничего не считаем, просто отмечаем его время
+			if (store_t.GetCount() == 1) {
+				pid_mem.start_time = val_time;
+				pid_mem.e_last     = heat_Tset - T;
+				pid_mem.t_last     = val_time;
+				pid_mem.integral   = 0;
+				pid_mem.max_u      = 0;
+				pid_mem.Tset_timer = 0;
+				// Выставляем мощность в 100%
+				pow = 100;
+				
+			} else {
+				// Считаем e(t) - текущую невязку
+				e_now = heat_Tset - T;
+				// dt
+				dt = (double)(val_time.Get() - pid_mem.t_last.Get());
+				// Интеграл по невязке
+				pid_mem.integral = pid_mem.integral + e_now * dt;
+				// Скорость для невязки
+				de = (e_now - pid_mem.e_last) / dt;
+				
+				// Обновляем временные хранилища прошлых значений
+				pid_mem.e_last = e_now;
+				pid_mem.t_last = val_time;
+				
+				// Считаем u(t):
+				u = cfg.pid_Kp * e_now 
+				  + cfg.pid_Ki * pid_mem.integral 
+				  + cfg.pid_Kd * de;
+				
+				// Ищем максимальное u(t)
+				if (u > pid_mem.max_u) pid_mem.max_u = u;
+				
+				// Ищем мощность в процентах
+				pow = (int)(u / pid_mem.max_u);
+				
+			}
+			// Обновляем значение на экране:
+			UpdateValue(7, now_time, pow);
+			
+			
+			if (heat_Tset - Tset_PRECISION <= T && T <= heat_Tset + Tset_PRECISION) {
+				if (pid_mem.Tset_timer == 0)
+					pid_mem.Tset_timer = now_time.Get();
+			}
+			if (pid_mem.Tset_timer > 0) {
+				// Проверяем, не прошло ли заданное время поддержания температуры Tset
+				if (now_time.Get() - pid_mem.Tset_timer >= heat_duration * 60) {
+					// Вырубаем нагрев:
+					pow = 0;
+					StopHeating();
+				}
+			}
+			
+			
+			
+			
+			// Пишем на управляющий сервер, если ручное управление отключено
+			if (!is_hand_controlling) {
+				for (int i = 0; i < 5; ++i) {
+					if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow))) break;
+				}
+			}
+			// -------------------------
+		}
 	}
+	
+	// ----- Текущее значение контрольного давления ------
 	val = opc_src.ReadTag(cfg.tagid_s_pressure, val_time, val_quality);
-	val_double = ScanDouble(val);
-	UpdateValue(2, val_time, val_double);
-	if (store_p.Add(val_time, val_double)) {
-		// Ура! Новое значение - считаем по нему все, что надо
+	P = ScanDouble(val);
+	UpdateValue(2, val_time, P);
+	if (val_quality) {
+		if (store_p.Add(val_time, P)) {
+			// Ура! Новое значение - считаем по нему все, что надо
 		
-		// -------------------------
+			// -------------------------
+		}
 	}
+	
+	
 }

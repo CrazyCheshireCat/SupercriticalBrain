@@ -33,8 +33,8 @@ SupercriticalBrain::SupercriticalBrain()
 	wnd_vals.Add("Вычисленное значение мощности");
 	
 		
-	btn_start <<= THISBACK(StartHeating);
-	btn_stop  <<= THISBACK(StopHeating);
+	btn_start <<= THISBACK(Push_StartHeating);
+	btn_stop  <<= THISBACK(Push_StopHeating);
 	
 	InitServers();
 	// ------- DATA STORES -------
