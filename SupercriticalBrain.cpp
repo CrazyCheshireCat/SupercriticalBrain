@@ -10,6 +10,8 @@ SupercriticalBrain::SupercriticalBrain()
 	
 	StandartInit();
 	
+	btn_stop.Disable();
+	
 	// Грузим конфиг
 	if (!LoadConfig()) {
 		Log_AddCritical("Неверный файл конфигурации, работа программы будет завершена");

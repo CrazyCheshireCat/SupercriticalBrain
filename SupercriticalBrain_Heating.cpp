@@ -65,6 +65,8 @@ void SupercriticalBrain::StartHeating()
 	v_Kp.Disable();
 	v_Ki.Disable();
 	v_Kd.Disable();
+	btn_start.Disable();
+	btn_stop.Enable();
 	Log_AddGood("Начат нагрев до " + FormatDouble(heat_Tset) + " °С");
 	Log_AddMessage("Установленное время поддержания температуры " + FormatInt64(heat_duration) + " мин");
 	
@@ -80,7 +82,8 @@ void SupercriticalBrain::StopHeating()
 	v_Kp.Enable();
 	v_Ki.Enable();
 	v_Kd.Enable();
-	
+	btn_start.Enable();
+	btn_stop.Disable();
 	Log_AddWarning("Нагрев остановлен вручную");
 	KillTimeCallback(CLBK_ID_HEATING);
 }
