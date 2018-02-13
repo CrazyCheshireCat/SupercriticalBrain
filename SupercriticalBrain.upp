@@ -10,6 +10,7 @@ file
 	SupercriticalBrain.cpp,
 	SupercriticalBrain_Config.cpp,
 	SupercriticalBrain_Heating.cpp,
+	SupercriticalBrain_OPC.cpp,
 	SupercriticalBrain_SensData.cpp,
 	main.cpp,
 	Resources readonly separator,

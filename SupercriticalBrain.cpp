@@ -18,17 +18,44 @@ SupercriticalBrain::SupercriticalBrain()
 	}
 	PrintConfig();
 		
+	wnd_vals.AddColumn("Параметр", 3);
+	wnd_vals.AddColumn("Время",    2);
+	wnd_vals.AddColumn("Значение", 1);
+	wnd_vals.Add("Сервер исходн. данных");
+	wnd_vals.Add("Контрольная температура");
+	wnd_vals.Add("Контрольное давление");
+	wnd_vals.Add("Сервер управления нагревом");
+	wnd_vals.Add("Ручное управление");
+	wnd_vals.Add("Текущее значение мощности");
+	wnd_vals.Add("");
+	wnd_vals.Add("Вычисленное значение мощности");
+	
+		
 	btn_start <<= THISBACK(StartHeating);
 	btn_stop  <<= THISBACK(StopHeating);
+	
+	InitServers();
+	// ------- DATA STORES -------
+	store_t.SetMaxCount(20);
+	store_p.SetMaxCount(20);
+}
+
+void SupercriticalBrain::UpdateValue(int pos, const Value& time, const Value& val)
+{
+	wnd_vals.Set(pos, 1, time);
+	wnd_vals.Set(pos, 2, val);
 }
 
 SupercriticalBrain::~SupercriticalBrain()
 {
+	KillTimeCallback(CLBK_ID_HEATING);
 	terminated = 1; 
 	while (thread_work) 
 		Sleep(10);
 	
 	StandartKill();
+	
+	SaveConfig();
 }
 
 void SupercriticalBrain::Log_AddText(AttrText mes)

@@ -17,6 +17,8 @@ using namespace Upp;
 
 // -----
 
+#define OPC_DFT_SEP '/'
+#define CLBK_ID_HEATING 101
 
 class SensDataPoint : Moveable <SensDataPoint> 
 {
@@ -71,7 +73,13 @@ struct SupercriticalBrainCfg
 	String opc_result_name;
 	String opc_r_tag_handcontrolling;
 	String opc_r_tag_power;
+	String opc_r_tag_last_power;
 	
+	int tagid_s_temperature;
+	int tagid_s_pressure;
+	int tagid_r_handcontrolling;
+	int tagid_r_power;
+	int tagid_r_last_power;
 	// -----
 	double pid_Kp;
 	double pid_Ki;
@@ -79,6 +87,14 @@ struct SupercriticalBrainCfg
 	int    pid_start_pow;
 	
 	Value j_conf;
+	
+	bool is_ok;
+};
+
+struct PID_Help
+{
+	double last_e;
+	double integral;
 };
 
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
@@ -112,19 +128,36 @@ protected:
 	void StandartKill();
 		
 public:
-
+	void RunRegulation();
+	
 protected:
 	SupercriticalBrainCfg cfg;
 	double heat_Tset;
 	int64  heat_duration;
 	
+	SimpleClientOPC opc_src;	// OPC-клиент для источника данных
+	SimpleClientOPC opc_ctr;	// OPC-клиент для управления
+	
 	// Загрузка конфигурации
 	bool LoadConfig();	
 	void PrintConfig();	
+	bool SaveConfig();
+	
+	void InitServers();
 	
 	bool CheckParams();
 	void StartHeating();
+	void HeatingCallback();
 	void StopHeating();
+	
+	bool ConnectOPC_SRC();
+	bool ConnectOPC_CTR();
+	
+	void UpdateValue(int pos, const Value& time, const Value& val);
+private:
+	SensDataStore store_t;
+	SensDataStore store_p;
+	
 };
 
 bool Configurate_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg);

@@ -1,5 +1,5 @@
-LAYOUT(SupercriticalBrainLayout, 752, 416)
-	ITEM(ArrayCtrl, wnd_log, HSizePosZ(0, 236).VSizePosZ(0, 0))
+LAYOUT(SupercriticalBrainLayout, 752, 420)
+	ITEM(ArrayCtrl, wnd_log, HSizePosZ(4, 4).VSizePosZ(192, 4))
 	ITEM(Label, lbl_Kp, SetLabel(t_("Kp: ")).SetAlign(ALIGN_RIGHT).RightPosZ(92, 64).TopPosZ(4, 19))
 	ITEM(EditDouble, v_Kp, RightPosZ(4, 88).TopPosZ(4, 19))
 	ITEM(Label, dv___3, SetLabel(t_("Ki: ")).SetAlign(ALIGN_RIGHT).RightPosZ(92, 64).TopPosZ(28, 19))
@@ -14,5 +14,6 @@ LAYOUT(SupercriticalBrainLayout, 752, 416)
 	ITEM(Button, btn_stop, SetLabel(t_("Остановить нагрев")).RightPosZ(4, 228).TopPosZ(164, 24))
 	ITEM(Label, dv___13, SetLabel(t_(" °С")).RightPosZ(4, 32).TopPosZ(88, 19))
 	ITEM(Label, dv___14, SetLabel(t_(" мин")).RightPosZ(4, 32).TopPosZ(112, 19))
+	ITEM(ArrayCtrl, wnd_vals, HSizePosZ(4, 236).TopPosZ(4, 184))
 END_LAYOUT
 

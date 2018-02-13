@@ -14,6 +14,7 @@ namespace SupercriticalBrainConfigNames
 	const char* n_DS_Tag_Pressure    = "TagName_Pressure";
 	const char* n_DataControl        = "DataControl";
 	const char* n_DC_PowerControl    = "TagName_Power";
+	const char* n_DC_PowerLast       = "TagName_LastPower";
 	const char* n_DC_ByHandControl   = "TagName_ByHandControl";
 	
 	const char* n_PID                = "PidSettings";
@@ -26,8 +27,6 @@ namespace SupercriticalBrainConfigNames
 
 /*
 {
-	"MainSettings" : {
-	}
 	"DataSource" : {
 		"ReadDataFrequency_sec" : 5,
 		"OPCServerName"         : "BinarControllingServer",
@@ -50,7 +49,10 @@ namespace SupercriticalBrainConfigNames
 
 bool SupercriticalBrain::LoadConfig()
 {
-	if (!Configurate_SupercriticalBrain(cfg)) {
+	//if (!Configurate_SupercriticalBrain(cfg)) {
+	//	return false;
+	//}
+	if (!Configurate_SupercriticalBrain(GetExeDirFile("supercriticalbrain.cfg"), cfg)) {
 		return false;
 	}
 	
@@ -58,6 +60,20 @@ bool SupercriticalBrain::LoadConfig()
 	v_Ki = cfg.pid_Ki;
 	v_Kd = cfg.pid_Kd;
 	return true;
+}
+
+bool SupercriticalBrain::SaveConfig()
+{
+	if (!cfg.is_ok) return false;
+	using namespace SupercriticalBrainConfigNames;
+	// Сохраняем все коэффициенты в конфиг:
+	cfg.j_conf(n_PID)(n_PID_Kp) = cfg.pid_Kp; //v_Kp.GetData();
+	cfg.j_conf(n_PID)(n_PID_Ki) = cfg.pid_Ki; //v_Ki.GetData();
+	cfg.j_conf(n_PID)(n_PID_Kd) = cfg.pid_Kd; //v_Kd.GetData();
+	
+	String path = GetExeDirFile("supercriticalbrain.cfg");
+	if (FileExists(path)) DeleteFile(path);
+	return SaveFile(path, AsJSON(cfg.j_conf, true));
 }
 
 void SupercriticalBrain::PrintConfig()
@@ -79,6 +95,7 @@ void SupercriticalBrain::PrintConfig()
 	Log_AddService("----- Сервер управления -----");
 	Log_AddService(" Имя сервера управления: "           + cfg.opc_result_name);
 	Log_AddService(" Канал управления мощностью: "       + cfg.opc_r_tag_power);
+	Log_AddService(" Текущее значение мощности: "        + cfg.opc_r_tag_last_power);
 	Log_AddService(" Ручное/автоматическое управление: " + cfg.opc_r_tag_handcontrolling);
 	//Log_AddService("-------------------------------------------");
 	Log_AddService("");
@@ -101,6 +118,7 @@ bool Configurate_SupercriticalBrain(SupercriticalBrainCfg& cfg)
 	cfg.opc_result_name            = "BinarControllingServer";
 	cfg.opc_r_tag_handcontrolling  = "Regulator/regultator_controlling_byHand";
 	cfg.opc_r_tag_power            = "Regulator/power02";
+	cfg.opc_r_tag_last_power       = "Regulator/last_power02";
 	
 	cfg.pid_Kp = 10;
 	cfg.pid_Ki = 0.01;
@@ -109,19 +127,10 @@ bool Configurate_SupercriticalBrain(SupercriticalBrainCfg& cfg)
 	
 	return true;
 }
-/*
-bool Configurate_SupercriticalBrain(const Value& j_conf, SupercriticalBrainCfg& cfg)
-{
-	if (j_conf.IsNull()) return false;
-	
-	if ()
-	
-	return false;
-}
-*/
 
 bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg)
 {
+	cfg.is_ok = false;
 	if (!FileExists(path)) return false;
 	try {
 		String  s = LoadFile(path);
@@ -137,7 +146,7 @@ bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg
 		if (!freq.SetValueJson(cfg.j_conf[n_DataSource])) return false; 
 		if (freq.GetValue() <= 0)                         return false;
 		cfg.work_freq = freq.GetValue();
-		
+
 		// ----- Opc name -----
 		str.SetName(n_OpcName);
 		if (!str.SetValueJson(cfg.j_conf[n_DataSource])) return false;
@@ -168,6 +177,12 @@ bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg
 		cfg.opc_r_tag_power = str.GetValue();
 		// -----
 		str.Clear();
+		str.SetName(n_DC_PowerLast);
+		if (!str.SetValueJson(cfg.j_conf[n_DataControl])) return false;
+		if (str.GetValue().IsEmpty())                     return false;
+		cfg.opc_r_tag_last_power = str.GetValue();
+		// -----
+		str.Clear();
 		str.SetName(n_DC_ByHandControl);
 		if (!str.SetValueJson(cfg.j_conf[n_DataControl])) return false;
 		if (str.GetValue().IsEmpty())                     return false;
@@ -192,7 +207,6 @@ bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg
 		//if(K.GetValue() )
 		cfg.pid_Kd = K.GetValue();
 		
-		
 	} catch (CParser::Error) {
 		cfg.j_conf = NULL;
 		return false;
@@ -200,9 +214,6 @@ bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg
 		cfg.j_conf = NULL;
 		return false;
 	}
+	cfg.is_ok = true;
 	return true;
-}
-
-void UpdateConfig_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg)
-{
 }
