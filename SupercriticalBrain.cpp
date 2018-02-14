@@ -90,7 +90,7 @@ void SupercriticalBrain::StandartInit()
 	thread_work = 0;		//< Поток для работы
 	
 	// Лог	
-	wnd_log.AddColumn("Время",     3);
+	wnd_log.AddColumn("Время",     1);
 	wnd_log.AddColumn("Сообщение", 5);
 	
 	// Окно	

@@ -1,6 +1,6 @@
 #include "SupercriticalBrain.h"
 
-#define Tset_PRECISION 1.0
+#define Tset_PRECISION 1.0 //, 
 
 bool SupercriticalBrain::CheckParams()
 {
@@ -16,7 +16,7 @@ bool SupercriticalBrain::CheckParams()
 		return false;
 	}
 	
-	if (v_Tset < 50 || v_Tset > 500) {
+	if (v_Tset < 20 || v_Tset > 500) {
 		PromptOK("Недопустимое значение температуры для нагрева");
 		v_Tset.SetFocus();
 		return false;
@@ -99,7 +99,7 @@ void SupercriticalBrain::Push_StopHeating()
 {
 	StopHeating();
 	
-	Log_AddWarning("Нагрев остановлен вручную");
+	Log_AddWarning("Нагрев останавливается вручную!");
 	SetTimeCallback(5000, callback(this, &SupercriticalBrain::SetNullPower));
 }
 
@@ -118,7 +118,7 @@ void SupercriticalBrain::SetNullPower()
 	if (!is_hand_controlling) {
 		for (int i = 0; i < 50; ++i) {
 			if (opc_ctr.WriteTag(cfg.tagid_r_power, "0")) {
-				Log_AddService("Отправлена команда выключения нагрева");
+				Log_AddGood("Команда выключения нагрева отправлена");
 				break;
 			}
 			Sleep(10);
@@ -196,7 +196,7 @@ void SupercriticalBrain::RunRegulation()
 				pid_mem.Tset_timer = 0;
 				// Выставляем мощность в 100%
 				pow = 100;
-				
+				Log_AddMessage("Включаем максимальный нагрев");
 			} else {
 				// Считаем e(t) - текущую невязку
 				e_now = heat_Tset - T;
@@ -220,28 +220,28 @@ void SupercriticalBrain::RunRegulation()
 				if (u > pid_mem.max_u) pid_mem.max_u = u;
 				
 				// Ищем мощность в процентах
-				pow = (int)(u / pid_mem.max_u);
+				pow = (int)(u * 100.0/ pid_mem.max_u);
 				
 			}
 			// Обновляем значение на экране:
 			UpdateValue(7, now_time, pow);
 			
 			
-			if (heat_Tset - Tset_PRECISION <= T && T <= heat_Tset + Tset_PRECISION) {
-				if (pid_mem.Tset_timer == 0)
+			if (heat_Tset - Tset_PRECISION <= T) { //  && T <= heat_Tset + Tset_PRECISION) {
+				if (pid_mem.Tset_timer == 0) {
+					Log_AddMessage("Заданная температура достигнута!");
 					pid_mem.Tset_timer = now_time.Get();
+				}
 			}
 			if (pid_mem.Tset_timer > 0) {
 				// Проверяем, не прошло ли заданное время поддержания температуры Tset
 				if (now_time.Get() - pid_mem.Tset_timer >= heat_duration * 60) {
+					Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
 					// Вырубаем нагрев:
 					pow = 0;
 					StopHeating();
 				}
 			}
-			
-			
-			
 			
 			// Пишем на управляющий сервер, если ручное управление отключено
 			if (!is_hand_controlling) {
