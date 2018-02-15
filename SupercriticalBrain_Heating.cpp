@@ -198,11 +198,15 @@ void SupercriticalBrain::RunRegulation()
 				pow = 100;
 				Log_AddMessage("Включаем максимальный нагрев");
 			} else {
+				if (pid_mem.max_u <= 0) {
+					Log_AddMessage("Включаем механизм ПИД-регулирования нагрева");
+				}
 				// Считаем e(t) - текущую невязку
 				e_now = heat_Tset - T;
 				// dt
 				dt = (double)(val_time.Get() - pid_mem.t_last.Get());
 				// Интеграл по невязке
+				//pid_mem.integral = pid_mem.integral;// + e_now * dt;
 				pid_mem.integral = pid_mem.integral + e_now * dt;
 				// Скорость для невязки
 				de = (e_now - pid_mem.e_last) / dt;
@@ -217,17 +221,22 @@ void SupercriticalBrain::RunRegulation()
 				  + cfg.pid_Kd * de;
 				
 				// Ищем максимальное u(t)
-				if (u > pid_mem.max_u) pid_mem.max_u = u;
 				
+				//if (u > pid_mem.max_u) pid_mem.max_u = u;
+				if (now_time.Get() - pid_mem.start_time.Get() <= 60) {
+					pid_mem.max_u = u;
+				}
 				// Ищем мощность в процентах
-				pow = (int)(u * 100.0/ pid_mem.max_u);
+				pow = (int)((u * 100.0/ pid_mem.max_u) + 0.5);
+				
+				//Log_AddService("<" + FormatDouble(e_now) + "> <" + FormatDouble(pid_mem.integral) + "> <" + FormatDouble(de) + "> = <" + FormatDouble(u) + "> <" + FormatDouble(pid_mem.max_u) + "> <" + FormatInt(pow) + ">");
 				
 			}
 			// Обновляем значение на экране:
 			UpdateValue(7, now_time, pow);
 			
 			
-			if (heat_Tset - Tset_PRECISION <= T) { //  && T <= heat_Tset + Tset_PRECISION) {
+			if (e_now <= Tset_PRECISION) { //  && T <= heat_Tset + Tset_PRECISION) {
 				if (pid_mem.Tset_timer == 0) {
 					Log_AddMessage("Заданная температура достигнута!");
 					pid_mem.Tset_timer = now_time.Get();
