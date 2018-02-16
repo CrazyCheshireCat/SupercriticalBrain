@@ -92,17 +92,6 @@ struct SupercriticalBrainCfg
 	bool is_ok;
 };
 
-struct PID_Help
-{
-	double e_last;
-	Time   t_last;
-	double integral;
-	Time   start_time;
-	double max_u;
-	int64  Tset_timer;
-	bool   is_hand_controlling;
-};
-
 class PID_Regulator : Moveable <PID_Regulator>
 {
 	friend PID_Regulator;
@@ -116,7 +105,7 @@ public:
 	bool SetPID_Coeff_Ki(double K_integral);
 	bool SetPID_Coeff_Kd(double K_differential);
 	
-	bool Start(double temperature_to_set, int time_to_sustain_min);
+	bool Start(double temperature_to_set, int64 time_to_sustain_min);
 	bool IsStopped() const { return (T_set < 0); }
 	bool IsStarted() const { return (T_set > 0); }
 	void Stop();
@@ -132,7 +121,7 @@ public:
 	int64 GetCurrentObtainTimestamp() const { return ts_obtain; }
 protected:
 	double T_set;
-	int    t_sustain;
+	int64  t_sustain;
 	
 	double Kp;
 	double Ki;
@@ -190,8 +179,7 @@ protected:
 		
 public:
 	void RunRegulation();
-	void RunRegulation_old();
-	
+		
 protected:
 	SupercriticalBrainCfg cfg;
 	double heat_Tset;
@@ -222,9 +210,7 @@ private:
 	SensDataStore store_t;
 	SensDataStore store_p;
 	PID_Regulator pid;
-	
-	PID_Help pid_mem;
-	
+		
 	void SetNullPower();
 	
 };

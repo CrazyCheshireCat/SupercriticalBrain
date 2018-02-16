@@ -86,7 +86,7 @@ bool PID_Regulator::SetPID_Coeff_Kd(double K_differential)
 	return true;	
 }
 	
-bool PID_Regulator::Start(double temperature_to_set, int time_to_sustain_min)
+bool PID_Regulator::Start(double temperature_to_set, int64 time_to_sustain_min)
 {
 	if (temperature_to_set <= 10) return false;
 	if (temperature_to_set > 600) return false;
@@ -98,22 +98,6 @@ bool PID_Regulator::Start(double temperature_to_set, int time_to_sustain_min)
 	
 	return true;
 }
-
-/*
-	double T_set;
-	int    t_sustain;
-	double Kp;
-	double Ki;
-	double Kd;
-	double T_sensitivity;
-	int    t_u_variation;
-	int64  ts_start;
-	int64  ts_obtain;
-	int64  ts_last;
-	double e_last;
-	double u_max;	
-	double e, i, de, dt, u;
-*/
 
 int64 PID_Regulator::GetCurrentSustainTime() const
 {

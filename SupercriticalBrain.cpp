@@ -53,8 +53,8 @@ void SupercriticalBrain::UpdateValue(int pos, const Value& time, const Value& va
 void SupercriticalBrain::ClearValues()
 {
 	for (int i = 0; i < wnd_vals.GetCount(); ++i) {
-		wnd_vals.Set(pos, 1, "");
-		wnd_vals.Set(pos, 2, "");
+		wnd_vals.Set(i, 1, "");
+		wnd_vals.Set(i, 2, "");
 	}
 }
 
