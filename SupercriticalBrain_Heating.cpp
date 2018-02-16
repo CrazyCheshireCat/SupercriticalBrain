@@ -228,12 +228,13 @@ void SupercriticalBrain::RunRegulation()
 				}
 				// Ищем мощность в процентах
 				pow = (int)((u * 100.0/ pid_mem.max_u) + 0.5);
+				if (pow <   0) pow = 0;
+				if (pow > 100) pow = 100;
 				
 				//Log_AddService("<" + FormatDouble(e_now) + "> <" + FormatDouble(pid_mem.integral) + "> <" + FormatDouble(de) + "> = <" + FormatDouble(u) + "> <" + FormatDouble(pid_mem.max_u) + "> <" + FormatInt(pow) + ">");
 				
 			}
-			// Обновляем значение на экране:
-			UpdateValue(7, now_time, pow);
+
 			
 			
 			if (e_now <= Tset_PRECISION) { //  && T <= heat_Tset + Tset_PRECISION) {
@@ -251,6 +252,8 @@ void SupercriticalBrain::RunRegulation()
 					StopHeating();
 				}
 			}
+			// Обновляем значение на экране:
+			UpdateValue(7, now_time, pow);
 			
 			// Пишем на управляющий сервер, если ручное управление отключено
 			if (!is_hand_controlling) {

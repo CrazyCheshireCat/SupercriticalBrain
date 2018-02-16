@@ -103,6 +103,58 @@ struct PID_Help
 	bool   is_hand_controlling;
 };
 
+class PID_Regulator : Moveable <PID_Regulator>
+{
+	friend PID_Regulator;
+public:
+	PID_Regulator()                         { Clear();    }
+	PID_Regulator(const PID_Regulator& src) { SetBy(src); }
+	~PID_Regulator()                        { Clear();    }
+	
+	bool SetPID_Coeff(double K_proportional, double K_integral, double K_differential);
+	bool SetPID_Coeff_Kp(double K_proportional);
+	bool SetPID_Coeff_Ki(double K_integral);
+	bool SetPID_Coeff_Kd(double K_differential);
+	
+	bool Start(double temperature_to_set, int time_to_sustain_min);
+	bool IsStopped() const { return (T_set < 0); }
+	bool IsStarted() const { return (T_set > 0); }
+	void Stop();
+	int  GetPower(const Time& t, const double& v);
+	
+	
+	void SetTemperatureSensitivity(double sensitivity) { if (sensitivity > 0) T_sensitivity = sensitivity;   }
+	void SetUVariation(int variation_sec)              { t_u_variation = variation_sec; }
+	
+	void Clear();
+protected:
+	double T_set;
+	int    t_sustain;
+	
+	double Kp;
+	double Ki;
+	double Kd;
+	
+	double T_sensitivity;
+	int    t_u_variation;
+	
+	int64  ts_start;
+	int64  ts_obtain;
+	int64  ts_last;
+	double e_last;
+	double i_last;
+	double u_max;	
+	int    pow;
+	int    pow_last;
+	
+	void Reset();
+	
+private:
+	void SetBy(const PID_Regulator& src);
+	double e, i, de, dt, u;
+	int64  t_now;
+};
+
 class SupercriticalBrain : public WithSupercriticalBrainLayout<TopWindow> 
 {
 	typedef SupercriticalBrain CLASSNAME;

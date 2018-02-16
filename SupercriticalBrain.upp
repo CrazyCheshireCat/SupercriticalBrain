@@ -12,6 +12,7 @@ file
 	SupercriticalBrain_Heating.cpp,
 	SupercriticalBrain_OPC.cpp,
 	SupercriticalBrain_SensData.cpp,
+	SupercriticalBrain_PIDRegulator.cpp,
 	main.cpp,
 	Resources readonly separator,
 	SupercriticalBrain.lay,
