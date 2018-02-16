@@ -1,7 +1,5 @@
 #include "SupercriticalBrain.h"
 
-#define Tset_PRECISION 1.0 //, 
-
 bool SupercriticalBrain::CheckParams()
 {
 	if (v_Tset.GetData().IsNull()) {
@@ -58,10 +56,30 @@ bool SupercriticalBrain::CheckParams()
 
 void SupercriticalBrain::Push_StartHeating()
 {
+	ClearValues();
+	// ----- Проверяем введенные параметры перед началом нагрева -----
 	if (!CheckParams()) {
 		Log_AddError("Неверные значения для начала работы");
 		return;
 	}
+	
+	// ----- Настраиваем ПИД-регулятор -----
+	if (!pid.SetPID_Coeff(cfg.pid_Kp, cfg.pid_Ki, cfg.pid_Kd)) {
+		Log_AddError("Неверные значения для начала работы");
+		return;
+	}
+	// Чувствительность для температуры - 1 градус
+	pid.SetTemperatureSensitivity(1.0);
+	// Время для установки максимального значения u(t) - 60 сек
+	pid.SetUVariation(60); 
+	
+	// ----- Стартуем регулятор с заданной температурой и на заданное время -----
+	if (!pid.Start(heat_Tset, heat_duration)) {
+		Log_AddError("Неверные значения для начала работы");
+		return;
+	}
+	
+	// ----- GUI -----
 	v_time.Disable();
 	v_Tset.Disable();
 	v_Kp.Disable();
@@ -69,8 +87,11 @@ void SupercriticalBrain::Push_StartHeating()
 	v_Kd.Disable();
 	btn_start.Disable();
 	btn_stop.Enable();
+	
+	// ----- Выводим в лог сообщение о начале работы -----
 	Log_AddGood("Начат нагрев до " + FormatDouble(heat_Tset) + " °С");
 	Log_AddMessage("Установленное время поддержания температуры " + FormatInt64(heat_duration) + " мин");
+	
 	
 	HeatingCallback();
 	SetTimeCallback(-(cfg.work_freq * 1000), callback(this, &SupercriticalBrain::HeatingCallback), CLBK_ID_HEATING);
@@ -157,14 +178,16 @@ void SupercriticalBrain::RunRegulation()
 	} else {
 		UpdateValue(3, now_time, "GOOD");
 	}
-	String val;
-	Time   val_time;
-	double T, P;
-	bool   val_quality;
+	// 
+	String val;						// Для чтения значения о OPC-сервера
+	Time   val_time;				// Для чтения метки времени с OPC-сервера
+	bool   val_quality;				// Для чтения качества значения с OPC-сервера
 	
+	double T, P;					// Температура и давление по контрольным каналам
 	bool   is_hand_controlling;		// Включено ли ручное управление нагревом?
 	int    current_power;			// Последнее установленное значение мощности
 									// (при непрерывной работе = текущее значение мощности)
+									
 	// ----- Включено ли ручное управление -----
 	val = opc_src.ReadTag(cfg.tagid_r_handcontrolling, val_time, val_quality);
 	is_hand_controlling = val.IsEqual("true");
@@ -174,83 +197,28 @@ void SupercriticalBrain::RunRegulation()
 	current_power = ScanInt(val);
 	UpdateValue(5, val_time, current_power);
 	
-	// Вспомогательные переменные для вычисления u(t)
-	double e_now;
-	double dt, de;
-	double u;
-	int    pow;
-	
 	// ----- Текущее значение контрольной температуры ------
 	val = opc_src.ReadTag(cfg.tagid_s_temperature, val_time, val_quality);
 	T = ScanDouble(val);
 	UpdateValue(1, val_time, T);
+	int pow;
+	
+	if (pid.GetCurrentObtainTimestamp() > 0) {
+		Time ts;
+		ts.Set(pid.GetCurrentObtainTimestamp());
+		Time ts1;
+		ts1.Set(pid.GetCurrentSustainTime());
+		UpdateValue(8, ts, FormatTime(ts1, "hh:mm:ss"));
+	}
+	
 	if (val_quality) {
 		if (store_t.Add(val_time, T)) { // Значение обновилось - можно пересчитать мощность
-			// Для первого значения - ничего не считаем, просто отмечаем его время
-			if (store_t.GetCount() == 1) {
-				pid_mem.start_time = val_time;
-				pid_mem.e_last     = heat_Tset - T;
-				pid_mem.t_last     = val_time;
-				pid_mem.integral   = 0;
-				pid_mem.max_u      = 0;
-				pid_mem.Tset_timer = 0;
-				// Выставляем мощность в 100%
-				pow = 100;
-				Log_AddMessage("Включаем максимальный нагрев");
-			} else {
-				if (pid_mem.max_u <= 0) {
-					Log_AddMessage("Включаем механизм ПИД-регулирования нагрева");
-				}
-				// Считаем e(t) - текущую невязку
-				e_now = heat_Tset - T;
-				// dt
-				dt = (double)(val_time.Get() - pid_mem.t_last.Get());
-				// Интеграл по невязке
-				//pid_mem.integral = pid_mem.integral;// + e_now * dt;
-				pid_mem.integral = pid_mem.integral + e_now * dt;
-				// Скорость для невязки
-				de = (e_now - pid_mem.e_last) / dt;
-				
-				// Обновляем временные хранилища прошлых значений
-				pid_mem.e_last = e_now;
-				pid_mem.t_last = val_time;
-				
-				// Считаем u(t):
-				u = cfg.pid_Kp * e_now 
-				  + cfg.pid_Ki * pid_mem.integral 
-				  + cfg.pid_Kd * de;
-				
-				// Ищем максимальное u(t)
-				
-				//if (u > pid_mem.max_u) pid_mem.max_u = u;
-				if (now_time.Get() - pid_mem.start_time.Get() <= 60) {
-					pid_mem.max_u = u;
-				}
-				// Ищем мощность в процентах
-				pow = (int)((u * 100.0/ pid_mem.max_u) + 0.5);
-				if (pow <   0) pow = 0;
-				if (pow > 100) pow = 100;
-				
-				//Log_AddService("<" + FormatDouble(e_now) + "> <" + FormatDouble(pid_mem.integral) + "> <" + FormatDouble(de) + "> = <" + FormatDouble(u) + "> <" + FormatDouble(pid_mem.max_u) + "> <" + FormatInt(pow) + ">");
-				
-			}
-
-			
-			
-			if (e_now <= Tset_PRECISION) { //  && T <= heat_Tset + Tset_PRECISION) {
-				if (pid_mem.Tset_timer == 0) {
-					Log_AddMessage("Заданная температура достигнута!");
-					pid_mem.Tset_timer = now_time.Get();
-				}
-			}
-			if (pid_mem.Tset_timer > 0) {
-				// Проверяем, не прошло ли заданное время поддержания температуры Tset
-				if (now_time.Get() - pid_mem.Tset_timer >= heat_duration * 60) {
-					Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
-					// Вырубаем нагрев:
-					pow = 0;
-					StopHeating();
-				}
+			pow = pid.GetPower(val_time, T);
+			if (pid.IsStopped()) {
+				Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
+				// Вырубаем нагрев:
+				pow = 0;
+				StopHeating();
 			}
 			// Обновляем значение на экране:
 			UpdateValue(7, now_time, pow);
@@ -261,10 +229,9 @@ void SupercriticalBrain::RunRegulation()
 					if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow))) break;
 				}
 			}
-			// -------------------------
 		}
 	}
-	
+
 	// ----- Текущее значение контрольного давления ------
 	val = opc_src.ReadTag(cfg.tagid_s_pressure, val_time, val_quality);
 	P = ScanDouble(val);
@@ -276,6 +243,5 @@ void SupercriticalBrain::RunRegulation()
 			// -------------------------
 		}
 	}
-	
-	
 }
+

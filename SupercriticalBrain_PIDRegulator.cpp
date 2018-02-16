@@ -92,9 +92,10 @@ bool PID_Regulator::Start(double temperature_to_set, int time_to_sustain_min)
 	if (temperature_to_set > 600) return false;
 	if (time_to_sustain_min <= 0) time_to_sustain_min = -1;	// отрицательное значение означает, что время поддержания
 															// не отслеживается
+	Reset();
 	T_set     = temperature_to_set;
 	t_sustain = time_to_sustain_min * 60;	//переводим в секунды
-	Reset();
+	
 	return true;
 }
 
@@ -113,6 +114,12 @@ bool PID_Regulator::Start(double temperature_to_set, int time_to_sustain_min)
 	double u_max;	
 	double e, i, de, dt, u;
 */
+
+int64 PID_Regulator::GetCurrentSustainTime() const
+{
+	if (t_sustain <= 0) return 0;
+	return GetSysTime().Get() - ts_obtain;
+}
 
 int PID_Regulator::GetPower(const Time& t, const double& v)
 {
@@ -152,7 +159,7 @@ int PID_Regulator::GetPower(const Time& t, const double& v)
 			ts_obtain = t_now;
 	}
 	// Если заданная температура была достигнута, проверяем, сколько мы уже греем на этом уровне температуры
-	if (t_sustain > 0) {	// Если время нагрева отслеживается программно - проверяем его
+	if (t_sustain > 0 && ts_obtain > 0) {	// Если время нагрева отслеживается программно - проверяем его
 		if (t_now - ts_obtain >= t_sustain) {
 			// Греем уже нужное время, поэтому вырубаем все
 			Stop();

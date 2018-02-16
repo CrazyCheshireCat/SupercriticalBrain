@@ -23,14 +23,16 @@ SupercriticalBrain::SupercriticalBrain()
 	wnd_vals.AddColumn("Параметр", 3);
 	wnd_vals.AddColumn("Время",    2);
 	wnd_vals.AddColumn("Значение", 1);
-	wnd_vals.Add("Сервер исходн. данных");
-	wnd_vals.Add("Контрольная температура");
-	wnd_vals.Add("Контрольное давление");
-	wnd_vals.Add("Сервер управления нагревом");
-	wnd_vals.Add("Ручное управление");
-	wnd_vals.Add("Текущее значение мощности");
+	wnd_vals.Add("Сервер исходн. данных");			// 0
+	wnd_vals.Add("Контрольная температура");		// 1
+	wnd_vals.Add("Контрольное давление");			// 2
+	wnd_vals.Add("Сервер управления нагревом");		// 3
+	wnd_vals.Add("Ручное управление");				// 4
+	wnd_vals.Add("Текущее значение мощности");		// 5
 	wnd_vals.Add("");
-	wnd_vals.Add("Вычисленное значение мощности");
+	wnd_vals.Add("Вычисленное значение мощности");	// 7
+	wnd_vals.Add("Время достижения заданной T°");	// 8
+//	wnd_vals.Add("Время удержания заданной T°");	// 9
 	
 		
 	btn_start <<= THISBACK(Push_StartHeating);
@@ -46,6 +48,14 @@ void SupercriticalBrain::UpdateValue(int pos, const Value& time, const Value& va
 {
 	wnd_vals.Set(pos, 1, time);
 	wnd_vals.Set(pos, 2, val);
+}
+
+void SupercriticalBrain::ClearValues()
+{
+	for (int i = 0; i < wnd_vals.GetCount(); ++i) {
+		wnd_vals.Set(pos, 1, "");
+		wnd_vals.Set(pos, 2, "");
+	}
 }
 
 SupercriticalBrain::~SupercriticalBrain()

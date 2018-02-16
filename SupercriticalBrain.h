@@ -127,6 +127,9 @@ public:
 	void SetUVariation(int variation_sec)              { t_u_variation = variation_sec; }
 	
 	void Clear();
+	
+	int64 GetCurrentSustainTime() const;
+	int64 GetCurrentObtainTimestamp() const { return ts_obtain; }
 protected:
 	double T_set;
 	int    t_sustain;
@@ -187,6 +190,7 @@ protected:
 		
 public:
 	void RunRegulation();
+	void RunRegulation_old();
 	
 protected:
 	SupercriticalBrainCfg cfg;
@@ -213,9 +217,11 @@ protected:
 	bool ConnectOPC_CTR();
 	
 	void UpdateValue(int pos, const Value& time, const Value& val);
+	void ClearValues();
 private:
 	SensDataStore store_t;
 	SensDataStore store_p;
+	PID_Regulator pid;
 	
 	PID_Help pid_mem;
 	

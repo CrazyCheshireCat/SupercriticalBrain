@@ -13,6 +13,7 @@ file
 	SupercriticalBrain_OPC.cpp,
 	SupercriticalBrain_SensData.cpp,
 	SupercriticalBrain_PIDRegulator.cpp,
+	SupercriticalBrain_Trash.cpp,
 	main.cpp,
 	Resources readonly separator,
 	SupercriticalBrain.lay,
