@@ -15,6 +15,8 @@ using namespace Upp;
 #define IMAGEFILE <SupercriticalBrain/SupercriticalBrain.iml>
 #include <Draw/iml_header.h>
 
+#include <WatchDogWarder/WatchDogWarder.h>
+
 // -----
 
 #define OPC_DFT_SEP '/'
@@ -188,6 +190,8 @@ protected:
 	SimpleClientOPC opc_src;	// OPC-клиент для источника данных
 	SimpleClientOPC opc_ctr;	// OPC-клиент для управления
 	
+	UnderControlDog dog;
+	
 	// Загрузка конфигурации
 	bool LoadConfig();	
 	void PrintConfig();	
@@ -212,7 +216,7 @@ private:
 	PID_Regulator pid;
 		
 	void SetNullPower();
-	
+	bool RunWatchdog();
 };
 
 bool Configurate_SupercriticalBrain(const char* cfg_path, SupercriticalBrainCfg& cfg);

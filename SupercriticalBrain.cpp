@@ -39,7 +39,10 @@ SupercriticalBrain::SupercriticalBrain()
 	btn_stop  <<= THISBACK(Push_StopHeating);
 	
 	InitServers();
-	// ------- DATA STORES -------
+	// ----- WATCHDOG -----
+	if (!RunWatchdog()) 
+		Log_AddWarning("Не найдена конфигурация для Watchdog. Watchdog не запущен");
+	// ----- DATA STORES -----
 	store_t.SetMaxCount(20);
 	store_p.SetMaxCount(20);
 }
@@ -66,7 +69,7 @@ SupercriticalBrain::~SupercriticalBrain()
 		Sleep(10);
 	
 	StandartKill();
-	
+	dog.Silence();
 	SaveConfig();
 }
 

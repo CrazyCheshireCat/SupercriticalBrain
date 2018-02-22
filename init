@@ -3,4 +3,5 @@
 #include "CtrlLib/init"
 #include "OPC_Client/init"
 #include "HeapOfNeeds/init"
+#include "WatchDogWarder/init"
 #endif

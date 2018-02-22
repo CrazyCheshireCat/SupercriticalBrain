@@ -92,10 +92,8 @@ void SupercriticalBrain::Push_StartHeating()
 	Log_AddGood("Начат нагрев до " + FormatDouble(heat_Tset) + " °С");
 	Log_AddMessage("Установленное время поддержания температуры " + FormatInt64(heat_duration) + " мин");
 	
-	
 	HeatingCallback();
 	SetTimeCallback(-(cfg.work_freq * 1000), callback(this, &SupercriticalBrain::HeatingCallback), CLBK_ID_HEATING);
-	
 }
 
 void SupercriticalBrain::StopHeating()

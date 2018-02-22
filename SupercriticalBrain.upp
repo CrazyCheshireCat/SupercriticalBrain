@@ -3,7 +3,8 @@ description "Управляющая часть для проекта Бинар�
 uses
 	CtrlLib,
 	OPC_Client,
-	HeapOfNeeds;
+	HeapOfNeeds,
+	WatchDogWarder;
 
 file
 	SupercriticalBrain.h,
@@ -13,6 +14,7 @@ file
 	SupercriticalBrain_OPC.cpp,
 	SupercriticalBrain_SensData.cpp,
 	SupercriticalBrain_PIDRegulator.cpp,
+	SupercriticalBrain_Watchdog.cpp,
 	SupercriticalBrain_Trash.cpp,
 	main.cpp,
 	Resources readonly separator,
