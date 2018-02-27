@@ -19,21 +19,24 @@ SupercriticalBrain::SupercriticalBrain()
 		return;
 	}
 	PrintConfig();
+	
+	opt_param = 0;
 		
 	wnd_vals.AddColumn("Параметр", 3);
 	wnd_vals.AddColumn("Время",    2);
 	wnd_vals.AddColumn("Значение", 1);
-	wnd_vals.Add("Сервер исходн. данных");			// 0
-	wnd_vals.Add("Контрольная температура");		// 1
-	wnd_vals.Add("Контрольное давление");			// 2
-	wnd_vals.Add("Сервер управления нагревом");		// 3
-	wnd_vals.Add("Ручное управление");				// 4
-	wnd_vals.Add("Текущее значение мощности");		// 5
-	wnd_vals.Add("");
-	wnd_vals.Add("Вычисленное значение мощности");	// 7
-	wnd_vals.Add("Время достижения заданной T°");	// 8
-//	wnd_vals.Add("Время удержания заданной T°");	// 9
 	
+	wnd_vals.Add("Сервер исходн. данных");					// 0
+	wnd_vals.Add("Контрольная температура");				// 1
+	wnd_vals.Add("Контрольное давление");					// 2
+	wnd_vals.Add("Сервер управления нагревом");				// 3
+	wnd_vals.Add("Ручное управление");						// 4
+	wnd_vals.Add("Текущее значение мощности");				// 5
+	wnd_vals.Add("");
+	wnd_vals.Add("Вычисленное значение мощности (по T°)");	// 7
+	wnd_vals.Add("Время достижения заданной T°");			// 8
+	wnd_vals.Add("Вычисленное значение мощности (по P)");	// 9
+	wnd_vals.Add("Время достижения заданного P");			// 10
 		
 	btn_start <<= THISBACK(Push_StartHeating);
 	btn_stop  <<= THISBACK(Push_StopHeating);

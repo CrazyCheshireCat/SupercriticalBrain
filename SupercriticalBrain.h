@@ -114,7 +114,7 @@ public:
 	int  GetPower(const Time& t, const double& v);
 	
 	
-	void SetTemperatureSensitivity(double sensitivity) { if (sensitivity > 0) T_sensitivity = sensitivity;   }
+	void SetSensitivity(double sensitivity)			   { if (sensitivity > 0) T_sensitivity = sensitivity;   }
 	void SetUVariation(int variation_sec)              { t_u_variation = variation_sec; }
 	
 	void Clear();
@@ -185,6 +185,7 @@ public:
 protected:
 	SupercriticalBrainCfg cfg;
 	double heat_Tset;
+	double heat_Pset;
 	int64  heat_duration;
 	
 	SimpleClientOPC opc_src;	// OPC-клиент для источника данных
@@ -213,7 +214,8 @@ protected:
 private:
 	SensDataStore store_t;
 	SensDataStore store_p;
-	PID_Regulator pid;
+	PID_Regulator pid_T;
+	PID_Regulator pid_P;
 		
 	void SetNullPower();
 	bool RunWatchdog();

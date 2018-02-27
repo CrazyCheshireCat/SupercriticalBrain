@@ -8,17 +8,28 @@ bool SupercriticalBrain::CheckParams()
 		return false;
 	}
 	
+	if (v_Pset.GetData().IsNull()) {
+		PromptOK("Не задано давление для нагрева");
+		v_Pset.SetFocus();
+		return false;
+	}
+	
 	if (v_time.GetData().IsNull()) {
 		PromptOK("Не задана длительность поддержания температуры");
 		v_time.SetFocus();
 		return false;
 	}
 	
-	if (v_Tset < 20 || v_Tset > 500) {
+	if (v_Tset < 20 || v_Tset > 600) {
 		PromptOK("Недопустимое значение температуры для нагрева");
 		v_Tset.SetFocus();
 		return false;
 	}
+	if (v_Pset < 1 || v_Pset > 600) {
+		PromptOK("Недопустимое значение давления для нагрева");
+		v_Tset.SetFocus();
+		return false;
+	}	
 
 	if (v_time <= 0 || v_time > 24*60) {
 		PromptOK("Недопустимое время поддержания заданной температуры");
@@ -49,6 +60,7 @@ bool SupercriticalBrain::CheckParams()
 	cfg.pid_Kd = v_Kd;
 	
 	heat_Tset     = v_Tset;
+	heat_Pset     = v_Pset;
 	heat_duration = v_time;
 	
 	return true;
@@ -63,21 +75,38 @@ void SupercriticalBrain::Push_StartHeating()
 		return;
 	}
 	
-	// ----- Настраиваем ПИД-регулятор -----
-	if (!pid.SetPID_Coeff(cfg.pid_Kp, cfg.pid_Ki, cfg.pid_Kd)) {
+	// ----- Настраиваем ПИД-регулятор (по температуре) -----
+	if (!pid_T.SetPID_Coeff(cfg.pid_Kp, cfg.pid_Ki, cfg.pid_Kd)) {
 		Log_AddError("Неверные значения для начала работы");
 		return;
 	}
 	// Чувствительность для температуры - 1 градус
-	pid.SetTemperatureSensitivity(1.0);
+	pid_T.SetSensitivity(1.0);
 	// Время для установки максимального значения u(t) - 60 сек
-	pid.SetUVariation(60); 
+	pid_T.SetUVariation(60); 
 	
 	// ----- Стартуем регулятор с заданной температурой и на заданное время -----
-	if (!pid.Start(heat_Tset, heat_duration)) {
+	if (!pid_T.Start(heat_Tset, heat_duration)) {
 		Log_AddError("Неверные значения для начала работы");
 		return;
 	}
+	
+	// ----- Настраиваем ПИД-регулятор (по давлению) -----
+	if (!pid_P.SetPID_Coeff(cfg.pid_Kp, cfg.pid_Ki, cfg.pid_Kd)) {
+		Log_AddError("Неверные значения для начала работы");
+		return;
+	}
+	// Чувствительность для давления - 1 бар
+	pid_P.SetSensitivity(1.0);
+	// Время для установки максимального значения u(t) - 60 сек
+	pid_P.SetUVariation(60); 
+	
+	// ----- Стартуем регулятор с заданным давлением и на заданное время -----
+	if (!pid_P.Start(heat_Pset, heat_duration)) {
+		Log_AddError("Неверные значения для начала работы");
+		return;
+	}
+
 	
 	// ----- GUI -----
 	v_time.Disable();
@@ -89,8 +118,8 @@ void SupercriticalBrain::Push_StartHeating()
 	btn_stop.Enable();
 	
 	// ----- Выводим в лог сообщение о начале работы -----
-	Log_AddGood("Начат нагрев до " + FormatDouble(heat_Tset) + " °С");
-	Log_AddMessage("Установленное время поддержания температуры " + FormatInt64(heat_duration) + " мин");
+	Log_AddGood("Начат нагрев до " + FormatDouble(heat_Tset) + " °С и/или давления " + FormatDouble(heat_Pset) + " бар" );
+	Log_AddMessage("Установленное время выдержки " + FormatInt64(heat_duration) + " мин");
 	
 	HeatingCallback();
 	SetTimeCallback(-(cfg.work_freq * 1000), callback(this, &SupercriticalBrain::HeatingCallback), CLBK_ID_HEATING);
@@ -195,50 +224,87 @@ void SupercriticalBrain::RunRegulation()
 	current_power = ScanInt(val);
 	UpdateValue(5, val_time, current_power);
 	
+	int pow_T;
+	int pow_P;	
+	
+	int controlling_option = ~opt_param;
+	
 	// ----- Текущее значение контрольной температуры ------
 	val = opc_src.ReadTag(cfg.tagid_s_temperature, val_time, val_quality);
 	T = ScanDouble(val);
 	UpdateValue(1, val_time, T);
-	int pow;
-	
-	if (pid.GetCurrentObtainTimestamp() > 0) {
+
+	if (pid_T.GetCurrentObtainTimestamp() > 0) {
 		Time ts;
-		ts.Set(pid.GetCurrentObtainTimestamp());
+		ts.Set(pid_T.GetCurrentObtainTimestamp());
 		Time ts1;
-		ts1.Set(pid.GetCurrentSustainTime());
+		ts1.Set(pid_T.GetCurrentSustainTime());
 		UpdateValue(8, ts, FormatTime(ts1, "hh:mm:ss"));
 	}
 	
 	if (val_quality) {
 		if (store_t.Add(val_time, T)) { // Значение обновилось - можно пересчитать мощность
-			pow = pid.GetPower(val_time, T);
-			if (pid.IsStopped()) {
+			pow_T = pid_T.GetPower(val_time, T);
+			if (pid_T.IsStopped()) {
 				Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
 				// Вырубаем нагрев:
-				pow = 0;
+				pow_T = 0;
 				StopHeating();
 			}
 			// Обновляем значение на экране:
-			UpdateValue(7, now_time, pow);
-			
+			UpdateValue(7, now_time, pow_T);
+
+			// =================================================================================
 			// Пишем на управляющий сервер, если ручное управление отключено
-			if (!is_hand_controlling) {
-				for (int i = 0; i < 5; ++i) {
-					if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow))) break;
+			if (controlling_option == 0) {	// Если выставлен контроль по температуре
+				if (!is_hand_controlling) {
+					for (int i = 0; i < 5; ++i) {
+						if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow_T))) break;
+					}
 				}
 			}
+			// =================================================================================
 		}
 	}
+
+
 
 	// ----- Текущее значение контрольного давления ------
 	val = opc_src.ReadTag(cfg.tagid_s_pressure, val_time, val_quality);
 	P = ScanDouble(val);
 	UpdateValue(2, val_time, P);
+	
+	if (pid_T.GetCurrentObtainTimestamp() > 0) {
+		Time ts;
+		ts.Set(pid_T.GetCurrentObtainTimestamp());
+		Time ts1;
+		ts1.Set(pid_T.GetCurrentSustainTime());
+		UpdateValue(10, ts, FormatTime(ts1, "hh:mm:ss"));
+	}
+		
 	if (val_quality) {
 		if (store_p.Add(val_time, P)) {
 			// Ура! Новое значение - считаем по нему все, что надо
-		
-			// -------------------------
+			pow_P = pid_T.GetPower(val_time, T);
+			if (pid_T.IsStopped()) {
+				Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
+				// Вырубаем нагрев:
+				pow_P = 0;
+				StopHeating();
+			}
+			// Обновляем значение на экране:
+			UpdateValue(9, now_time, pow_P);
+			
+			// =================================================================================
+			// Пишем на управляющий сервер, если ручное управление отключено
+			if (controlling_option == 1) {	// Если выставлен контроль по давлению
+				if (!is_hand_controlling) {
+					for (int i = 0; i < 5; ++i) {
+						if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow_P))) break;
+					}
+				}
+			}
+			// =================================================================================
 		}
 	}
 }
