@@ -67,6 +67,13 @@ protected:
 	void SetBy(const SensDataStore& src);
 };
 
+struct PIDCfg
+{
+	double Kp;
+	double Ki;
+	double Kd;
+};
+
 struct SupercriticalBrainCfg
 {
 	int work_freq;
@@ -84,10 +91,12 @@ struct SupercriticalBrainCfg
 	int tagid_r_power;
 	int tagid_r_last_power;
 	// -----
-	double pid_Kp;
-	double pid_Ki;
-	double pid_Kd;
-	int    pid_start_pow;
+
+	PIDCfg pid_tempt;
+	PIDCfg pid_press;
+
+	//int    pid_start_pow;
+	//int    pid_max_pow;
 	
 	Value j_conf;
 	
@@ -116,6 +125,8 @@ public:
 	
 	void SetSensitivity(double sensitivity)			   { if (sensitivity > 0) T_sensitivity = sensitivity;   }
 	void SetUVariation(int variation_sec)              { t_u_variation = variation_sec; }
+	bool SetMaxPower(int max_pow);
+	bool SetStartPower(int start_pow);
 	
 	void Clear();
 	
@@ -131,6 +142,8 @@ protected:
 	
 	double T_sensitivity;
 	int    t_u_variation;
+	int    p_maximum;
+	int    p_start;
 	
 	int64  ts_start;
 	int64  ts_obtain;
@@ -187,6 +200,9 @@ protected:
 	double heat_Tset;
 	double heat_Pset;
 	int64  heat_duration;
+	
+	int    heat_start_pow;
+	int    heat_max_pow;
 	
 	SimpleClientOPC opc_src;	// OPC-клиент для источника данных
 	SimpleClientOPC opc_ctr;	// OPC-клиент для управления

@@ -16,6 +16,10 @@ namespace SupercriticalBrainConfigNames
 	const char* n_DC_PowerControl    = "TagName_Power";
 	const char* n_DC_PowerLast       = "TagName_LastPower";
 	const char* n_DC_ByHandControl   = "TagName_ByHandControl";
+	const char* n_StartPower         = "PidStartPower";
+	
+	const char* n_PID_T              = "TemperatureCtr";
+	const char* n_PID_P              = "PressureCtr";
 	
 	const char* n_PID                = "PidSettings";
 	
@@ -56,9 +60,13 @@ bool SupercriticalBrain::LoadConfig()
 		return false;
 	}
 	
-	v_Kp = cfg.pid_Kp;
-	v_Ki = cfg.pid_Ki;
-	v_Kd = cfg.pid_Kd;
+	v_Kp_T = cfg.pid_tempt.Kp;
+	v_Ki_T = cfg.pid_tempt.Ki;
+	v_Kd_T = cfg.pid_tempt.Kd;
+	
+	v_Kp_P = cfg.pid_press.Kp;
+	v_Ki_P = cfg.pid_press.Ki;
+	v_Kd_P = cfg.pid_press.Kd;
 	return true;
 }
 
@@ -67,9 +75,13 @@ bool SupercriticalBrain::SaveConfig()
 	if (!cfg.is_ok) return false;
 	using namespace SupercriticalBrainConfigNames;
 	// Сохраняем все коэффициенты в конфиг:
-	cfg.j_conf(n_PID)(n_PID_Kp) = cfg.pid_Kp; //v_Kp.GetData();
-	cfg.j_conf(n_PID)(n_PID_Ki) = cfg.pid_Ki; //v_Ki.GetData();
-	cfg.j_conf(n_PID)(n_PID_Kd) = cfg.pid_Kd; //v_Kd.GetData();
+	cfg.j_conf(n_PID_T)(n_PID)(n_PID_Kp) = cfg.pid_tempt.Kp; //v_Kp.GetData();
+	cfg.j_conf(n_PID_T)(n_PID)(n_PID_Ki) = cfg.pid_tempt.Ki; //v_Ki.GetData();
+	cfg.j_conf(n_PID_T)(n_PID)(n_PID_Kd) = cfg.pid_tempt.Kd; //v_Kd.GetData();
+	
+	cfg.j_conf(n_PID_P)(n_PID)(n_PID_Kp) = cfg.pid_press.Kp; //v_Kp.GetData();
+	cfg.j_conf(n_PID_P)(n_PID)(n_PID_Ki) = cfg.pid_press.Ki; //v_Ki.GetData();
+	cfg.j_conf(n_PID_P)(n_PID)(n_PID_Kd) = cfg.pid_press.Kd; //v_Kd.GetData();
 	
 	String path = GetExeDirFile("supercriticalbrain.cfg");
 	if (FileExists(path)) DeleteFile(path);
@@ -100,9 +112,14 @@ void SupercriticalBrain::PrintConfig()
 	//Log_AddService("-------------------------------------------");
 	Log_AddService("");
 	Log_AddService("----- Коэффициенты ПИД-регулирования -----");
-	Log_AddService(" Пропорциональный: Kp = "     + FormatDouble(cfg.pid_Kp));
-	Log_AddService(" Интегральный: Ki = "         + FormatDouble(cfg.pid_Ki));
-	Log_AddService(" Дифференциальный: Kd =  "    + FormatDouble(cfg.pid_Kd));
+	Log_AddService("- Температура -");
+	Log_AddService(" Пропорциональный: Kp = "     + FormatDouble(cfg.pid_tempt.Kp));
+	Log_AddService(" Интегральный: Ki = "         + FormatDouble(cfg.pid_tempt.Ki));
+	Log_AddService(" Дифференциальный: Kd =  "    + FormatDouble(cfg.pid_tempt.Kd));
+	Log_AddService("- Давление -");
+	Log_AddService(" Пропорциональный: Kp = "     + FormatDouble(cfg.pid_tempt.Kp));
+	Log_AddService(" Интегральный: Ki = "         + FormatDouble(cfg.pid_tempt.Ki));
+	Log_AddService(" Дифференциальный: Kd =  "    + FormatDouble(cfg.pid_tempt.Kd));
 	Log_AddService("");
 	Log_AddService("-------------------------------------------");
 	Log_AddService("");
@@ -120,10 +137,14 @@ bool Configurate_SupercriticalBrain(SupercriticalBrainCfg& cfg)
 	cfg.opc_r_tag_power            = "Regulator/power02";
 	cfg.opc_r_tag_last_power       = "Regulator/last_power02";
 	
-	cfg.pid_Kp = 10;
-	cfg.pid_Ki = 0.01;
-	cfg.pid_Kd = 10;
-	cfg.pid_start_pow = 100;
+	cfg.pid_tempt.Kp = 10;
+	cfg.pid_tempt.Ki = 0.01;
+	cfg.pid_tempt.Kd = 10;
+	
+	cfg.pid_press.Kp = 10;
+	cfg.pid_press.Ki = 0.01;
+	cfg.pid_press.Kd = 10;
+	//cfg.pid_start_pow = 100;
 	
 	return true;
 }
@@ -188,25 +209,42 @@ bool Configurate_SupercriticalBrain(const char* path, SupercriticalBrainCfg& cfg
 		if (str.GetValue().IsEmpty())                     return false;
 		cfg.opc_r_tag_handcontrolling = str.GetValue();
 		
-		// ----- PID Kp-----
+		// ----- PID Settings Temperature -----
+		// Kp
 		K.Clear();
 		K.SetName(n_PID_Kp);
-		if(!K.SetValueJson(cfg.j_conf[n_PID])) return false;
-		//if(K.GetValue() )
-		cfg.pid_Kp = K.GetValue();
-		// ----- PID Ki-----
+		if(!K.SetValueJson(cfg.j_conf[n_PID_T][n_PID])) return false;
+		cfg.pid_tempt.Kp = K.GetValue();
+		// Ki
 		K.Clear();
 		K.SetName(n_PID_Ki);
-		if(!K.SetValueJson(cfg.j_conf[n_PID]))    return false;
-		if(K.GetValue() >= 1 || K.GetValue() < 0) return false;
-		cfg.pid_Ki = K.GetValue();
-		
+		if(!K.SetValueJson(cfg.j_conf[n_PID_T][n_PID])) return false;
+		if(K.GetValue() >= 1 || K.GetValue() < 0)       return false;
+		cfg.pid_tempt.Ki = K.GetValue();
+		// Kd
 		K.Clear();
 		K.SetName(n_PID_Kd);
-		if(!K.SetValueJson(cfg.j_conf[n_PID])) return false;
-		//if(K.GetValue() )
-		cfg.pid_Kd = K.GetValue();
+		if(!K.SetValueJson(cfg.j_conf[n_PID_T][n_PID])) return false;
+		cfg.pid_tempt.Kd = K.GetValue();
 		
+		// ----- PID Settings Pressure -----
+		// Kp
+		K.Clear();
+		K.SetName(n_PID_Kp);
+		if(!K.SetValueJson(cfg.j_conf[n_PID_P][n_PID])) return false;
+		cfg.pid_press.Kp = K.GetValue();
+		// Ki
+		K.Clear();
+		K.SetName(n_PID_Ki);
+		if(!K.SetValueJson(cfg.j_conf[n_PID_P][n_PID])) return false;
+		if(K.GetValue() >= 1 || K.GetValue() < 0)       return false;
+		cfg.pid_press.Ki = K.GetValue();
+		// Kd
+		K.Clear();
+		K.SetName(n_PID_Kd);
+		if(!K.SetValueJson(cfg.j_conf[n_PID_P][n_PID])) return false;
+		cfg.pid_press.Kd = K.GetValue();	
+			
 	} catch (CParser::Error) {
 		cfg.j_conf = NULL;
 		return false;

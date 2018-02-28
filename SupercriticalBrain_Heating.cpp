@@ -20,6 +20,18 @@ bool SupercriticalBrain::CheckParams()
 		return false;
 	}
 	
+	if (v_Pmax.GetData().IsNull()) {
+		PromptOK("Не задано максимальное значение мощности");
+		v_Pmax.SetFocus();
+		return false;
+	}
+	
+	if (v_Pstart.GetData().IsNull()) {
+		PromptOK("Не задано стартовое значение мощности");
+		v_Pstart.SetFocus();
+		return false;
+	}
+	
 	if (v_Tset < 20 || v_Tset > 600) {
 		PromptOK("Недопустимое значение температуры для нагрева");
 		v_Tset.SetFocus();
@@ -37,31 +49,67 @@ bool SupercriticalBrain::CheckParams()
 		return false;
 	}
 	
-	if (v_Kp < 0) {
+	if (v_Kp_T < 0) {
 		PromptOK("Недопустимое значение коэффициента Kp");
-		v_Kp.SetFocus();
+		v_Kp_T.SetFocus();
 		return false;
 	}
 	
-	if (v_Ki < 0 || v_Ki >= 1) {
+	if (v_Ki_T < 0 || v_Ki_T >= 1) {
 		PromptOK("Недопустимое значение коэффициента Ki");
-		v_Ki.SetFocus();
+		v_Ki_T.SetFocus();
 		return false;
 	}
 	
-	if (v_Kd < 0) {
+	if (v_Kd_T < 0) {
 		PromptOK("Недопустимое значение коэффициента Kd");
-		v_Kd.SetFocus();
+		v_Kd_T.SetFocus();
 		return false;
 	}
-		
-	cfg.pid_Kp = v_Kp;
-	cfg.pid_Ki = v_Ki;
-	cfg.pid_Kd = v_Kd;
 	
-	heat_Tset     = v_Tset;
-	heat_Pset     = v_Pset;
-	heat_duration = v_time;
+	if (v_Kp_P < 0) {
+		PromptOK("Недопустимое значение коэффициента Kp");
+		v_Kp_P.SetFocus();
+		return false;
+	}
+	
+	if (v_Ki_P < 0 || v_Ki_P >= 1) {
+		PromptOK("Недопустимое значение коэффициента Ki");
+		v_Ki_P.SetFocus();
+		return false;
+	}
+	
+	if (v_Kd_P < 0) {
+		PromptOK("Недопустимое значение коэффициента Kd");
+		v_Kd_P.SetFocus();
+		return false;
+	}
+	
+	if (v_Pmax < 1 || v_Pmax > 100) {
+		PromptOK("Недопустимое значение максимальной мощности");
+		v_Pmax.SetFocus();
+		return false;
+	}
+	
+	if (v_Pstart < 1 || v_Pstart > 100) {
+		PromptOK("Недопустимое значение стартовой мощности");
+		v_Pstart.SetFocus();
+		return false;
+	}	
+		
+	cfg.pid_tempt.Kp = ~v_Kp_T;
+	cfg.pid_tempt.Ki = ~v_Ki_T;
+	cfg.pid_tempt.Kd = ~v_Kd_T;
+	cfg.pid_press.Kp = ~v_Kp_P;
+	cfg.pid_press.Ki = ~v_Ki_P;
+	cfg.pid_press.Kd = ~v_Kd_P;
+	
+	heat_Tset        = ~v_Tset;
+	heat_Pset        = ~v_Pset;
+	heat_duration    = ~v_time;
+	
+	heat_start_pow   = ~v_Pstart;
+	heat_max_pow     = ~v_Pmax;
 	
 	return true;
 }
@@ -76,7 +124,7 @@ void SupercriticalBrain::Push_StartHeating()
 	}
 	
 	// ----- Настраиваем ПИД-регулятор (по температуре) -----
-	if (!pid_T.SetPID_Coeff(cfg.pid_Kp, cfg.pid_Ki, cfg.pid_Kd)) {
+	if (!pid_T.SetPID_Coeff(cfg.pid_tempt.Kp, cfg.pid_tempt.Ki, cfg.pid_tempt.Kd)) {
 		Log_AddError("Неверные значения для начала работы");
 		return;
 	}
@@ -84,6 +132,10 @@ void SupercriticalBrain::Push_StartHeating()
 	pid_T.SetSensitivity(1.0);
 	// Время для установки максимального значения u(t) - 60 сек
 	pid_T.SetUVariation(60); 
+	// Максимальное значение:
+	pid_T.SetMaxPower(heat_max_pow); 
+	// Стартовое значение:
+	pid_T.SetStartPower(heat_start_pow); 
 	
 	// ----- Стартуем регулятор с заданной температурой и на заданное время -----
 	if (!pid_T.Start(heat_Tset, heat_duration)) {
@@ -92,7 +144,7 @@ void SupercriticalBrain::Push_StartHeating()
 	}
 	
 	// ----- Настраиваем ПИД-регулятор (по давлению) -----
-	if (!pid_P.SetPID_Coeff(cfg.pid_Kp, cfg.pid_Ki, cfg.pid_Kd)) {
+	if (!pid_P.SetPID_Coeff(cfg.pid_press.Kp, cfg.pid_press.Ki, cfg.pid_press.Kd)) {
 		Log_AddError("Неверные значения для начала работы");
 		return;
 	}
@@ -100,7 +152,10 @@ void SupercriticalBrain::Push_StartHeating()
 	pid_P.SetSensitivity(1.0);
 	// Время для установки максимального значения u(t) - 60 сек
 	pid_P.SetUVariation(60); 
-	
+	// Максимальное значение:
+	pid_P.SetMaxPower(heat_max_pow); 
+	// Стартовое значение:
+	pid_P.SetStartPower(heat_start_pow); 
 	// ----- Стартуем регулятор с заданным давлением и на заданное время -----
 	if (!pid_P.Start(heat_Pset, heat_duration)) {
 		Log_AddError("Неверные значения для начала работы");
@@ -111,9 +166,16 @@ void SupercriticalBrain::Push_StartHeating()
 	// ----- GUI -----
 	v_time.Disable();
 	v_Tset.Disable();
-	v_Kp.Disable();
-	v_Ki.Disable();
-	v_Kd.Disable();
+	v_Pmax.Disable();
+	v_Pstart.Disable();
+	
+	v_Kp_T.Disable();
+	v_Ki_T.Disable();
+	v_Kd_T.Disable();
+	v_Kp_P.Disable();
+	v_Ki_P.Disable();
+	v_Kd_P.Disable();
+	
 	btn_start.Disable();
 	btn_stop.Enable();
 	
@@ -129,9 +191,15 @@ void SupercriticalBrain::StopHeating()
 {
 	v_time.Enable();
 	v_Tset.Enable();
-	v_Kp.Enable();
-	v_Ki.Enable();
-	v_Kd.Enable();
+	v_Pmax.Enable();
+	v_Pstart.Enable();
+	v_Kp_T.Enable();
+	v_Ki_T.Enable();
+	v_Kd_T.Enable();
+	v_Kp_P.Enable();
+	v_Ki_P.Enable();
+	v_Kd_P.Enable();
+		
 	btn_start.Enable();
 	btn_stop.Disable();
 	
@@ -274,19 +342,19 @@ void SupercriticalBrain::RunRegulation()
 	P = ScanDouble(val);
 	UpdateValue(2, val_time, P);
 	
-	if (pid_T.GetCurrentObtainTimestamp() > 0) {
+	if (pid_P.GetCurrentObtainTimestamp() > 0) {
 		Time ts;
-		ts.Set(pid_T.GetCurrentObtainTimestamp());
+		ts.Set(pid_P.GetCurrentObtainTimestamp());
 		Time ts1;
-		ts1.Set(pid_T.GetCurrentSustainTime());
+		ts1.Set(pid_P.GetCurrentSustainTime());
 		UpdateValue(10, ts, FormatTime(ts1, "hh:mm:ss"));
 	}
 		
 	if (val_quality) {
 		if (store_p.Add(val_time, P)) {
 			// Ура! Новое значение - считаем по нему все, что надо
-			pow_P = pid_T.GetPower(val_time, T);
-			if (pid_T.IsStopped()) {
+			pow_P = pid_P.GetPower(val_time, T);
+			if (pid_P.IsStopped()) {
 				Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
 				// Вырубаем нагрев:
 				pow_P = 0;

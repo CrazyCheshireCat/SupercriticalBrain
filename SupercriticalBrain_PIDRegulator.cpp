@@ -20,6 +20,9 @@ void PID_Regulator::SetBy(const PID_Regulator& src)
 	e_last        = src.e_last;
 	i_last        = src.i_last;
 	u_max         = src.u_max;
+	
+	p_maximum     = src.p_maximum;
+	p_start       = src.p_start;
 }
 
 void PID_Regulator::Stop()
@@ -51,7 +54,24 @@ void PID_Regulator::Clear()
 	T_sensitivity = 0.0;
 	t_u_variation = 0;
 	
+	p_maximum = DFT_POWER_LIMIT;
+	p_start   = DFT_POWER_LIMIT;
+	
 	Reset();
+}
+
+bool PID_Regulator::SetMaxPower(int max_pow)
+{
+	if (max_pow <= 0 || max_pow > 100) return false;
+	p_maximum = max_pow;
+	return true;
+}
+	
+bool PID_Regulator::SetStartPower(int start_pow)
+{
+	if (start_pow <= 0 || start_pow > 100) return false;
+	p_start = start_pow;
+	return true;
 }
 
 bool PID_Regulator::SetPID_Coeff(double K_proportional, double K_integral, double K_differential)
@@ -119,7 +139,7 @@ int PID_Regulator::GetPower(const Time& t, const double& v)
 		e_last   = e;			//< Прошлое значение невязки
 		ts_last  = t.Get();		//< Временная метка для прошлого значения невязки
 		
-		return DFT_POWER_LIMIT;
+		return p_maximum;
 	}
 	
 	// ----- Если значение не первое - уже можно что-то посчитать: -----
@@ -162,8 +182,9 @@ int PID_Regulator::GetPower(const Time& t, const double& v)
 	// Запоминаем прошлое значение:
 	pow_last = pow;
 	// Вычисляем процент процент подаваемой мощности:
-	pow = (int)((u / u_max) * DFT_POWER_LIMIT + 0.5); // Плюс округляем в большую сторону
-	if (pow < 0)               pow = 0;
-	if (pow > DFT_POWER_LIMIT) pow = DFT_POWER_LIMIT;
+	//pow = (int)((u / u_max) * DFT_POWER_LIMIT + 0.5); // Плюс округляем в большую сторону
+	pow = (int)((u / u_max) * p_start + 0.5); // Плюс округляем в большую сторону
+	if (pow < 0)         pow = 0;
+	if (pow > p_maximum) pow = p_maximum;
 	return pow;
 }
