@@ -8,6 +8,13 @@ SupercriticalBrain::SupercriticalBrain()
 	CtrlLayout(*this, "SupercriticalBrain");
 	Icon(SupercriticalBrainImg::monitor_16(), SupercriticalBrainImg::monitor_32());
 	
+	//v_Pset = 100;
+	//v_time = 100;
+	//v_Tset = 100;
+	
+	v_Pmax  = 100;
+	v_Pstart = 100;
+	
 	StandartInit();
 	
 	btn_stop.Disable();
@@ -30,14 +37,18 @@ SupercriticalBrain::SupercriticalBrain()
 	wnd_vals.Add("Контрольная температура");				// 1
 	wnd_vals.Add("Контрольное давление");					// 2
 	wnd_vals.Add("Сервер управления нагревом");				// 3
-	wnd_vals.Add("Ручное управление");						// 4
+	wnd_vals.Add("Управление");								// 4
 	wnd_vals.Add("Текущее значение мощности");				// 5
 	wnd_vals.Add("");
 	wnd_vals.Add("Вычисленное значение мощности (по T°)");	// 7
 	wnd_vals.Add("Время достижения заданной T°");			// 8
-	wnd_vals.Add("Вычисленное значение мощности (по P)");	// 9
-	wnd_vals.Add("Время достижения заданного P");			// 10
-		
+	wnd_vals.Add("Вычисленное значение мощности (по p)");	// 9
+	wnd_vals.Add("Время достижения заданного p");			// 10
+	wnd_vals.Add("");
+	wnd_vals.Add("Производная T°");							// 12
+	wnd_vals.Add("Производная p");							// 13
+	wnd_vals.Add("Невязка T°");								// 14
+	wnd_vals.Add("Невязка p");								// 15
 	btn_start <<= THISBACK(Push_StartHeating);
 	btn_stop  <<= THISBACK(Push_StopHeating);
 	
@@ -108,6 +119,7 @@ void SupercriticalBrain::StandartInit()
 	// Лог	
 	wnd_log.AddColumn("Время",     1);
 	wnd_log.AddColumn("Сообщение", 5);
+	wnd_log.NoCursor();
 	
 	// Окно	
 	this->Sizeable(true);

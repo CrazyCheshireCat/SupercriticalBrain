@@ -166,6 +166,7 @@ void SupercriticalBrain::Push_StartHeating()
 	// ----- GUI -----
 	v_time.Disable();
 	v_Tset.Disable();
+	v_Pset.Disable();
 	v_Pmax.Disable();
 	v_Pstart.Disable();
 	
@@ -191,6 +192,7 @@ void SupercriticalBrain::StopHeating()
 {
 	v_time.Enable();
 	v_Tset.Enable();
+	v_Pset.Enable();
 	v_Pmax.Enable();
 	v_Pstart.Enable();
 	v_Kp_T.Enable();
@@ -277,6 +279,8 @@ void SupercriticalBrain::RunRegulation()
 	String val;						// Для чтения значения о OPC-сервера
 	Time   val_time;				// Для чтения метки времени с OPC-сервера
 	bool   val_quality;				// Для чтения качества значения с OPC-сервера
+	bool   val_quality_P;			// Для чтения качества значения P с OPC-сервера
+	bool   val_quality_T;			// Для чтения качества значения T с OPC-сервера
 	
 	double T, P;					// Температура и давление по контрольным каналам
 	bool   is_hand_controlling;		// Включено ли ручное управление нагревом?
@@ -286,7 +290,7 @@ void SupercriticalBrain::RunRegulation()
 	// ----- Включено ли ручное управление -----
 	val = opc_src.ReadTag(cfg.tagid_r_handcontrolling, val_time, val_quality);
 	is_hand_controlling = val.IsEqual("true");
-	UpdateValue(4, val_time, is_hand_controlling ? "да" : "нет");
+	UpdateValue(4, val_time, is_hand_controlling ? "ручное" : "авто");
 	// ----- Текущее значение мощности ------
 	val = opc_src.ReadTag(cfg.tagid_r_last_power, val_time, val_quality);
 	current_power = ScanInt(val);
@@ -298,7 +302,7 @@ void SupercriticalBrain::RunRegulation()
 	int controlling_option = ~opt_param;
 	
 	// ----- Текущее значение контрольной температуры ------
-	val = opc_src.ReadTag(cfg.tagid_s_temperature, val_time, val_quality);
+	val = opc_src.ReadTag(cfg.tagid_s_temperature, val_time, val_quality_T);
 	T = ScanDouble(val);
 	UpdateValue(1, val_time, T);
 
@@ -310,7 +314,7 @@ void SupercriticalBrain::RunRegulation()
 		UpdateValue(8, ts, FormatTime(ts1, "hh:mm:ss"));
 	}
 	
-	if (val_quality) {
+	if (val_quality_T) {
 		if (store_t.Add(val_time, T)) { // Значение обновилось - можно пересчитать мощность
 			pow_T = pid_T.GetPower(val_time, T);
 			if (pid_T.IsStopped()) {
@@ -321,24 +325,10 @@ void SupercriticalBrain::RunRegulation()
 			}
 			// Обновляем значение на экране:
 			UpdateValue(7, now_time, pow_T);
-
-			// =================================================================================
-			// Пишем на управляющий сервер, если ручное управление отключено
-			if (controlling_option == 0) {	// Если выставлен контроль по температуре
-				if (!is_hand_controlling) {
-					for (int i = 0; i < 5; ++i) {
-						if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow_T))) break;
-					}
-				}
-			}
-			// =================================================================================
 		}
 	}
-
-
-
 	// ----- Текущее значение контрольного давления ------
-	val = opc_src.ReadTag(cfg.tagid_s_pressure, val_time, val_quality);
+	val = opc_src.ReadTag(cfg.tagid_s_pressure, val_time, val_quality_P);
 	P = ScanDouble(val);
 	UpdateValue(2, val_time, P);
 	
@@ -350,10 +340,10 @@ void SupercriticalBrain::RunRegulation()
 		UpdateValue(10, ts, FormatTime(ts1, "hh:mm:ss"));
 	}
 		
-	if (val_quality) {
+	if (val_quality_P) {
 		if (store_p.Add(val_time, P)) {
 			// Ура! Новое значение - считаем по нему все, что надо
-			pow_P = pid_P.GetPower(val_time, T);
+			pow_P = pid_P.GetPower(val_time, P);
 			if (pid_P.IsStopped()) {
 				Log_AddGood("Время поддержания заданной температуры истекло. Остановка нагрева!");
 				// Вырубаем нагрев:
@@ -362,17 +352,39 @@ void SupercriticalBrain::RunRegulation()
 			}
 			// Обновляем значение на экране:
 			UpdateValue(9, now_time, pow_P);
-			
-			// =================================================================================
-			// Пишем на управляющий сервер, если ручное управление отключено
-			if (controlling_option == 1) {	// Если выставлен контроль по давлению
-				if (!is_hand_controlling) {
-					for (int i = 0; i < 5; ++i) {
-						if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow_P))) break;
-					}
-				}
-			}
-			// =================================================================================
+		}
+	}
+	// Для отладки:
+	UpdateValue(12, now_time, pid_T.GetCurrentValueDerivative()); // Производная T°
+	UpdateValue(13, now_time, pid_P.GetCurrentValueDerivative()); // Производная p
+	UpdateValue(14, now_time, pid_T.GetCurrentDiff()); 			  // Невязка T°
+	UpdateValue(15, now_time, pid_P.GetCurrentDiff()); 			  // Невязка p
+	
+	// ===== ЗАПИСЬ ЗНАЧЕНИЯ МОЩНОСТИ НА УПРАВЛЯЮЩИЙ СЕРВЕР =====
+	// Если управление ручное - ничего не пишем
+	if (is_hand_controlling) return;
+	int pow = -1;
+	// Опция "T" - контроль мощности по данным датчика температуры
+	if (controlling_option == 0 && val_quality_T) pow = pow_T;
+	// Опция "P" - контроль мощности по данным датчика давления
+	if (controlling_option == 1 && val_quality_P) pow = pow_P;
+	// Опция "авто(E)" - контроль мощности по невязке. Устанавливается то значение
+	// мощности, невязка по которому МЕНЬШЕ (т.е. именно это значение ближе всего 
+	// в данный момент к требуемому.
+	if (controlling_option == 2 && val_quality_T && val_quality_P) {
+		pow = (pid_T.GetCurrentDiff() < pid_P.GetCurrentDiff() ? pow_T : pow_P);
+	}
+	// Опция "авто(d)" - контроль мощности по производной. Устанавливается то 
+	// значение мощности, производная по которому БОЛЬШЕ (т.е. скорость
+	// роста у этого параметра в данный момент выше).
+	if (controlling_option == 3 && val_quality_T && val_quality_P) {
+		pow = (pid_T.GetCurrentValueDerivative() > pid_P.GetCurrentValueDerivative() ? pow_T : pow_P);
+	}
+	// Пишем выбранное значение на сервер:
+	if (pow >= 0) {
+		for (int i = 0; i < 5; ++i) {	// Делаем 5 попыток записи
+			if (opc_ctr.WriteTag(cfg.tagid_r_power, FormatInt(pow))) break;
+			Sleep(1);
 		}
 	}
 }

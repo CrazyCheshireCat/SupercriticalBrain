@@ -103,7 +103,7 @@ struct SupercriticalBrainCfg
 	bool is_ok;
 };
 
-class PID_Regulator : Moveable <PID_Regulator>
+class PID_Regulator// : Moveable <PID_Regulator>
 {
 	friend PID_Regulator;
 public:
@@ -122,6 +122,8 @@ public:
 	void Stop();
 	int  GetPower(const Time& t, const double& v);
 	
+	double GetCurrentDiff() const 			 { return e_last; }
+	double GetCurrentValueDerivative() const { return -de; }
 	
 	void SetSensitivity(double sensitivity)			   { if (sensitivity > 0) T_sensitivity = sensitivity;   }
 	void SetUVariation(int variation_sec)              { t_u_variation = variation_sec; }
