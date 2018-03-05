@@ -22,6 +22,9 @@ using namespace Upp;
 #define OPC_DFT_SEP '/'
 #define CLBK_ID_HEATING 101
 
+/**
+ *
+ */
 class SensDataPoint : Moveable <SensDataPoint> 
 {
 public:
